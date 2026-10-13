@@ -246,6 +246,8 @@ const ACTION_DESCRIPTORS = {
         { value: 'planar', label: 'Planar' }
       ]),
       number('arap_iters', 'ARAP iterations', 4, '0 disables ARAP (LSCM/planar only)', { min: 0, max: 100, step: 1 }),
+      toggle('rejoin', 'Re-join islands', true, 'After flattening, merge neighbouring islands wherever the union still flattens cleanly: fewer islands and seams, a little more distortion'),
+      number('rejoin_limit', 'Join strength', 1.45, 'How much shear a re-joined island may reach. Higher = fewer islands, more distortion', { min: 1.05, max: 3, step: 0.05 }),
       toggle('ensure_disks', 'Cut non-disk charts', true, 'Open tubes, closed shells and handled charts with the cheapest cut so they flatten without folding'),
       // Packing
       {

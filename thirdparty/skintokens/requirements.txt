@@ -19,3 +19,4 @@ uvicorn
 python-multipart
 requests
 tqdm
+open3d==0.20.0

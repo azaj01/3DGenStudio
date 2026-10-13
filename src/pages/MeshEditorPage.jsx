@@ -5136,6 +5136,8 @@ export default function MeshEditorPage() {
         // 1.00 = isometric; 95th percentile so a few slivers don't dominate.
         if (t.stretch_energy_p95 != null) rows.push({ label: 'Stretch (p95)', value: t.stretch_energy_p95.toFixed(2) })
         if (t.density_off_share != null) rows.push({ label: 'Texel density off >25%', value: `${(t.density_off_share * 100).toFixed(1)}%` })
+        if (t.shear_share != null) rows.push({ label: 'Sheared >1.5x', value: `${(t.shear_share * 100).toFixed(1)}%` })
+        if (t.uv_coverage != null) rows.push({ label: 'UV coverage', value: `${(t.uv_coverage * 100).toFixed(0)}%` })
         if (t.seam_visible_share != null) rows.push({ label: 'Seams on open surface', value: `${(t.seam_visible_share * 100).toFixed(0)}%` })
         if (t.mean_angle_distortion != null) rows.push({ label: 'Angle distortion', value: t.mean_angle_distortion.toFixed(3) })
         return rows

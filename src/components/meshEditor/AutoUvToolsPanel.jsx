@@ -113,6 +113,13 @@ export default function AutoUvToolsPanel({
         <RangeField label="ARAP iterations" min={0} max={100} step={1}
           value={o.arap_iters} onChange={v => setOption('arap_iters', v)} disabled={fieldsDisabled}
           hint="0 disables ARAP (LSCM/planar only)" />
+        <ToggleField label="Re-join islands" value={o.rejoin}
+          onChange={v => setOption('rejoin', v)} disabled={fieldsDisabled}
+          hint="After flattening, merge neighbouring islands wherever the union still flattens cleanly: fewer islands and seams, a little more distortion" />
+        <RangeField label="Join strength" min={1.05} max={3} step={0.05} decimals={2}
+          value={o.rejoin_limit} onChange={v => setOption('rejoin_limit', v)}
+          disabled={fieldsDisabled || !o.rejoin}
+          hint="How much shear a re-joined island may reach. Higher = fewer islands, more distortion" />
         <ToggleField label="Cut non-disk charts" value={o.ensure_disks}
           onChange={v => setOption('ensure_disks', v)} disabled={fieldsDisabled}
           hint="Open tubes, closed shells and handled charts with the cheapest cut so they flatten without folding" />

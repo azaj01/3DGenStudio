@@ -16,6 +16,7 @@ from . import hidden as _hidden
 from . import metrics as _metrics
 from . import topology as _topology
 from . import border as _border
+from . import rejoin as _rejoin
 
 
 def _split_disconnected(mesh, labels):
@@ -276,6 +277,8 @@ def unwrap(
     hide_strength: float = 1.0,
     refine_borders: bool = True,
     border_rings: int = 4,
+    rejoin: bool = True,
+    rejoin_limit: float = 1.45,
     ensure_disks: bool = True,
     progress=None,
     verbose: bool = True,
@@ -473,6 +476,27 @@ def unwrap(
         work.extend(flatten_unfolded(np.nonzero(labels == c)[0]))
         report("parameterize", (c + 1) / n_charts)
     n_folds_split = len(work) - n_charts
+
+    # ---- give seams back: re-join neighbours that flatten as well together --
+    rejoin_stats = None
+    t_r0 = time.time()
+    if rejoin and len(work) > 1:
+        def flatten_fast(fids):
+            # A screen, not a layout: LSCM alone, no fallback search, coarse
+            # overlap. rejoin trusts its verdict only on shear, tearing and box
+            # growth -- the cases no other flattening could rescue.
+            return _param.parameterize_chart(
+                verts, faces, fids, method="lscm", arap_iters=0,
+                vertex_weight=vertex_weight, make_disk=ensure_disks)
+
+        work, rejoin_stats = _rejoin.rejoin_islands(
+            mesh, work, flatten, flatten_fast=flatten_fast,
+            limit=rejoin_limit, floor=rejoin_limit,
+            budget=max(6.0, min(30.0, mesh.n_faces / 300.0)),
+            progress=lambda p: report("rejoin", p))
+        if verbose:
+            print(f"[rejoin] {rejoin_stats} in {time.time() - t_r0:.2f}s")
+    t_rejoin = time.time() - t_r0
     n_charts = len(work)
 
     for c, (fids, (uv, uniq, lf, info)) in enumerate(work):
@@ -601,6 +625,7 @@ def unwrap(
         "borders_moved": border_stats["moved"] if border_stats else 0,
         # extra charts made by splitting charts that folded over themselves
         "fold_splits": int(n_folds_split),
+        "islands_rejoined": int(rejoin_stats["joined"]) if rejoin_stats else 0,
         "charts_cut": len(cut_kinds),
         "cut_edges": int(cut_edges),
         "cut_kinds": {k: cut_kinds.count(k) for k in set(cut_kinds)},
@@ -615,6 +640,7 @@ def unwrap(
             "segment": round(t_b0 - t0 - t_hidden, 3),
             "borders": round(t_border - t_b0, 3),
             "parameterize": round(t_param - t_seg, 3),
+            "rejoin": round(t_rejoin, 3),
             "pack": round(t_pack - t_param, 3),
             "metrics": round(t_metrics - t_pack, 3),
         },

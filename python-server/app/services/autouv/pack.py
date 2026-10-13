@@ -97,41 +97,72 @@ def _skyline_pack(boxes, bin_w):
     return placements, used_w, used_h
 
 
+# Bin widths tried, as multiples of the square-root-of-area guess. One width is
+# a gamble: with a handful of large islands the skyline can leave a whole
+# column empty at one width and fill it at the next.
+_WIDTHS = (0.70, 0.78, 0.86, 0.93, 1.0, 1.08, 1.17, 1.27, 1.4, 1.6)
+
+
+def _best_layout(sizes, pad):
+    """Pack padded boxes at several bin widths; keep the one that scales largest."""
+    boxes = [[i, w + pad, h + pad, None] for i, (w, h) in enumerate(sizes)]
+    total = sum(b[1] * b[2] for b in boxes)
+    widest = max(b[1] for b in boxes)
+    guess = np.sqrt(total / 0.85)
+    best = None
+    for k in _WIDTHS:
+        bin_w = max(guess * k, widest)
+        placements, used_w, used_h = _skyline_pack(boxes, bin_w)
+        side = max(used_w, used_h, 1e-12)
+        if best is None or side < best[0]:
+            best = (side, placements)
+    return best
+
+
 def pack(islands, resolution=1024, padding_texels=4):
     """Pack a list of (V,2) islands into ``[0,1]^2``.
 
     Returns ``(packed_islands, fill_ratio)`` where ``fill_ratio`` is the share of
     the unit square covered by island bounding boxes.
-    """
-    pad = padding_texels / float(resolution)
 
-    boxes = []
-    for i, uv in enumerate(islands):
+    Padding is asked for in *texels of the final atlas*, but the islands are in
+    model units until the very last rescale, so it has to be converted with a
+    scale that is only known once packing is done. The old code added it in
+    texel-fraction units straight onto model-unit boxes, which made the real
+    gap depend on the model's size: 0.7 texels instead of 4 on a typical
+    asset, touching islands on a large one, 48 texels on a tiny one. The scale
+    is estimated, the layout made, and the estimate refined -- the gap then
+    lands within a few percent of the request.
+    """
+    mins, sizes = [], []
+    for uv in islands:
         mn = uv.min(axis=0)
         ext = uv.max(axis=0) - mn
-        boxes.append([i, float(ext[0]) + pad, float(ext[1]) + pad, mn])
+        mins.append(mn)
+        sizes.append((float(ext[0]), float(ext[1])))
 
-    total_area = sum(b[1] * b[2] for b in boxes)
-    # aim a bit denser than square; skyline usually realises ~85%
-    bin_w = np.sqrt(total_area / 0.85)
-    # never make the bin narrower than the widest single box
-    bin_w = max(bin_w, max(b[1] for b in boxes))
-
-    placements, used_w, used_h = _skyline_pack(boxes, bin_w)
-    scale = 1.0 / max(used_w, used_h, 1e-9)
+    pad_uv = padding_texels / float(resolution)    # wanted gap, final UV units
+    side, placements = _best_layout(sizes, 0.0)
+    pad = 0.0
+    for _ in range(3):
+        scale = 1.0 / side
+        pad = pad_uv / scale                       # the same gap in island units
+        side, placements = _best_layout(sizes, pad)
+        # the padded layout is bigger, so the real scale is smaller: refine
+    scale = 1.0 / side
 
     packed = [None] * len(islands)
     used = 0.0
-    for bi in range(len(islands)):
-        i, w, h, mn = boxes[bi]
+    for bi, uv in enumerate(islands):
+        w, h = sizes[bi]
         ox, oy, rot = placements[bi]
-        uv = islands[bi] - mn
+        uv = uv - mins[bi]
         if rot:                                    # rotate 90 degrees
-            uv = np.column_stack((uv[:, 1], (w - pad) - uv[:, 0]))
+            uv = np.column_stack((uv[:, 1], w - uv[:, 0]))
         uv = uv * scale
         uv[:, 0] += (ox + pad * 0.5) * scale
         uv[:, 1] += (oy + pad * 0.5) * scale
         packed[bi] = uv
-        used += ((w - pad) * scale) * ((h - pad) * scale)
+        used += (w * scale) * (h * scale)
 
     return packed, float(used)

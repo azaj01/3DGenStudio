@@ -1,6 +1,6 @@
 """Per-chart post-processing: straighten and normalise texel density.
 
-* PCA-align: rotate each island so its dominant axis is horizontal. Artists do
+* Align: rotate each island to its minimum-area bounding rectangle. Artists do
   this by hand because axis-aligned, roughly-rectangular islands pack tighter
   and make texture painting predictable.
 * Texel density: scale every island by a single global factor so that
@@ -12,27 +12,52 @@ from __future__ import annotations
 import numpy as np
 
 
+def _rotate(X, angle):
+    ca, sa = np.cos(angle), np.sin(angle)
+    return X @ np.array([[ca, -sa], [sa, ca]]).T
+
+
 def align_island(uv):
-    """Rotate UVs so the principal axis is horizontal; return rotated copy."""
+    """Rotate an island to its smallest bounding rectangle; return a copy.
+
+    The packer sees only bounding boxes, so the orientation that matters is the
+    one with the least box area, not the principal axis. For long straight
+    islands the two agree; for L-shapes, fans and the big irregular islands a
+    re-join pass produces they do not, and the PCA box can be much larger. The
+    minimum-area rectangle has one side flush with an edge of the convex hull
+    (rotating calipers), so only those angles need testing.
+
+    Rotation only: the island is then turned a further 90 degrees if it came
+    out taller than wide. (This used to swap x and y, which *mirrors* the
+    island -- half of all islands shipped with reversed winding, so painted
+    text read backwards and tangent-space handedness flipped between islands.)
+    """
     c = uv.mean(axis=0)
     X = uv - c
-    if len(X) < 2:
-        return uv.copy()
-    cov = X.T @ X
-    w, V = np.linalg.eigh(cov)
-    axis = V[:, np.argmax(w)]           # principal direction
-    angle = np.arctan2(axis[1], axis[0])
-    ca, sa = np.cos(-angle), np.sin(-angle)
-    R = np.array([[ca, -sa], [sa, ca]])
-    out = X @ R.T
-    # keep islands "wide" (w >= h) for tidy shelf packing
-    w_ext = np.ptp(out[:, 0])
-    h_ext = np.ptp(out[:, 1])
-    if h_ext > w_ext:
-        out = out[:, ::-1].copy()
-    # move to positive quadrant
-    out -= out.min(axis=0)
-    return out
+    if len(X) < 3:
+        return uv - uv.min(axis=0)
+    angle = None
+    try:
+        from scipy.spatial import ConvexHull
+        H = X[ConvexHull(X).vertices]
+        e = np.roll(H, -1, axis=0) - H
+        cand = np.arctan2(e[:, 1], e[:, 0])
+        best = None
+        for t in cand:
+            R = _rotate(H, -t)
+            area = float(np.ptp(R[:, 0]) * np.ptp(R[:, 1]))
+            if best is None or area < best[0] - 1e-15:
+                best = (area, t)
+        angle = best[1]
+    except Exception:  # degenerate (collinear) island: fall back to PCA
+        w, V = np.linalg.eigh(X.T @ X)
+        axis = V[:, np.argmax(w)]
+        angle = np.arctan2(axis[1], axis[0])
+    out = _rotate(X, -angle)
+    # keep islands "wide" (w >= h) for tidy shelf packing -- by rotating
+    if np.ptp(out[:, 1]) > np.ptp(out[:, 0]):
+        out = np.column_stack([-out[:, 1], out[:, 0]])
+    return out - out.min(axis=0)
 
 
 def uv_area(uv, faces):

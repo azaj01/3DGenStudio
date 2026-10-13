@@ -76,6 +76,13 @@ class AutoUvOptions(BaseModel):
                                              "would flatten worse are refused.")
     border_rings: int = Field(default=4, ge=1, le=16,
                               description="How many face rings either side of a border it may move.")
+    rejoin: bool = Field(default=True,
+                         description="After flattening, re-join neighbouring islands wherever the union "
+                                     "still flattens cleanly: far fewer islands and seams for a little "
+                                     "more distortion.")
+    rejoin_limit: float = Field(default=1.45, ge=1.05, le=3.0,
+                                description="Shear a re-joined island may reach (95th-percentile stretch "
+                                            "ratio). Higher = fewer islands, more distortion.")
     ensure_disks: bool = Field(default=True,
                                description="Cut charts that are not a disk (tubes, closed shells, handles, plates "
                                            "with holes that flatten badly) so they flatten without folding.")

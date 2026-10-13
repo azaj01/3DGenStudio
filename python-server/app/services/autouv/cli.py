@@ -65,6 +65,12 @@ def _add_unwrap_args(p: argparse.ArgumentParser) -> None:
                         "left them (skip the min-cut border move)")
     p.add_argument("--border-rings", type=int, default=4, dest="border_rings",
                    help="face rings either side of a border it may move (default 4)")
+    p.add_argument("--no-rejoin", action="store_false", dest="rejoin",
+                   help="keep every island the flattening produced instead of "
+                        "re-joining neighbours that flatten cleanly together")
+    p.add_argument("--rejoin-limit", type=float, default=1.45, dest="rejoin_limit",
+                   help="shear a re-joined island may reach (p95 stretch ratio, "
+                        "default 1.45); higher = fewer islands, more distortion")
     p.add_argument("--no-disk-cuts", action="store_false", dest="ensure_disks",
                    help="flatten non-disk charts (tubes, closed shells) as they "
                         "are instead of cutting them open")
@@ -115,6 +121,8 @@ def _cmd_unwrap(args: argparse.Namespace) -> int:
         hide_strength=args.hide_strength,
         refine_borders=args.refine_borders,
         border_rings=args.border_rings,
+        rejoin=args.rejoin,
+        rejoin_limit=args.rejoin_limit,
         ensure_disks=args.ensure_disks,
         progress=None if args.quiet else _progress,
         verbose=not args.quiet,

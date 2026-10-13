@@ -50,6 +50,8 @@ const AUTO_UV_OPTIONS = {
   hide_strength: z.number().min(0).max(4).default(1).describe('How much more a seam costs on visible surface than in a hidden crease. 0 = only length and sharpness matter.'),
   refine_borders: z.boolean().default(true).describe('Move every chart border onto the cheapest route near it (min-cut): shorter, straighter seams on creases/hidden edges. Moves that would flatten worse are refused.'),
   border_rings: z.number().int().min(1).max(16).default(4).describe('How many face rings either side of a border it may move.'),
+  rejoin: z.boolean().default(true).describe('After flattening, re-join neighbouring islands wherever the union still flattens cleanly: far fewer islands and seams for a little more distortion.'),
+  rejoin_limit: z.number().min(1.05).max(3).default(1.45).describe('Shear a re-joined island may reach (95th-percentile stretch ratio). Higher = fewer islands, more distortion.'),
   ensure_disks: z.boolean().default(true).describe('Cut charts that are not a disk (tubes, closed shells, handles, plates with holes that flatten badly) so they flatten without folding.')
 };
 

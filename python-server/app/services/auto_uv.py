@@ -48,7 +48,8 @@ _UV_STAGE_RANGES = {
     "segment": (0.10, 0.20),
     "refine": (0.20, 0.45),
     "borders": (0.45, 0.60),
-    "parameterize": (0.60, 0.93),
+    "parameterize": (0.60, 0.80),
+    "rejoin": (0.80, 0.93),
     "metrics": (0.93, 0.96),
 }
 _UV_STAGE_LABELS = {
@@ -58,6 +59,7 @@ _UV_STAGE_LABELS = {
     "refine": "Refining charts",
     "borders": "Moving seams to hidden edges",
     "parameterize": "Flattening charts",
+    "rejoin": "Re-joining islands",
     "metrics": "Measuring the layout",
 }
 
@@ -96,6 +98,8 @@ def run_auto_uv(mesh: trimesh.Trimesh, options: AutoUvOptions, progress=None,
         hide_strength=options.hide_strength,
         refine_borders=options.refine_borders,
         border_rings=options.border_rings,
+        rejoin=options.rejoin,
+        rejoin_limit=options.rejoin_limit,
         ensure_disks=options.ensure_disks,
         progress=unwrap_progress,
         verbose=False,

@@ -121,6 +121,45 @@ def density_share(vertices, faces, uv, lo=0.8, hi=1.25):
     return float(a3[off].sum() / tot3)
 
 
+def face_anisotropy(vertices, faces, uv):
+    """Per-face shear: sigma_max / sigma_min of the 3D->UV Jacobian (1 = no shear).
+
+    Unlike :func:`face_energy` this ignores scale entirely, so it can judge a
+    single island before texel density is normalised. Degenerate or collapsed
+    faces get ``ENERGY_CAP``. Returns ``(ratio, area3d)``.
+    """
+    P, a3 = triangle_frames(vertices, faces)
+    J, ok = jacobians(P, uv, faces)
+    sv = singular_values(J)
+    r = np.full(len(faces), ENERGY_CAP)
+    good = ok & (a3 > _EPS) & (sv[:, 1] > _EPS)
+    r[good] = np.minimum(sv[good, 0] / sv[good, 1], ENERGY_CAP)
+    return r, a3
+
+
+def stretch_p95(vertices, faces, uv):
+    """Area-weighted 95th percentile of face shear, ignoring sliver faces.
+
+    Faces under 1% of the median area are skipped: a needle triangle can read
+    any ratio at all and says nothing about the island.
+    """
+    r, a3 = face_anisotropy(vertices, faces, uv)
+    keep = a3 >= 0.01 * np.median(a3) if len(a3) else a3 > 0
+    if not keep.any():
+        return 1.0
+    r, a3 = r[keep], a3[keep]
+    o = np.argsort(r)
+    cum = np.cumsum(a3[o]) / a3.sum()
+    return float(r[o][min(np.searchsorted(cum, 0.95), len(r) - 1)])
+
+
+def bad_share(vertices, faces, uv, limit=1.5):
+    """Share of surface area sheared more than ``limit`` (default 1.5x)."""
+    r, a3 = face_anisotropy(vertices, faces, uv)
+    tot = a3.sum()
+    return float(a3[r > limit].sum() / tot) if tot > _EPS else 0.0
+
+
 # --------------------------------------------------------------- overlaps
 def uv_overlap(uv, faces, resolution=1024, chunk=2_000_000, return_hits=False):
     """Texels of a ``resolution``^2 texture that more than one triangle covers.
@@ -220,13 +259,15 @@ def _orient(a, b, c):
     return (b[:, 0] - a[:, 0]) * (c[:, 1] - a[:, 1]) - (b[:, 1] - a[:, 1]) * (c[:, 0] - a[:, 0])
 
 
-def boundary_crosses(uv, faces, max_pairs=3_000_000):
+def boundary_crosses(uv, faces):
     """True when two boundary edges of an island properly cross each other.
 
     For a flip-free map of a disk this is exactly the case where the island
     overlaps itself (a local homeomorphism of a disk is injective when its
     boundary curve is simple), and boundary edges are a small fraction of
-    the faces, so this is the cheap first test.
+    the faces, so this is the cheap first test. Candidate pairs come from a
+    uniform grid sized to the longest boundary edge, so the cost stays near
+    linear in the boundary length instead of quadratic.
     """
     a = faces.reshape(-1)
     b = faces[:, [1, 2, 0]].reshape(-1)
@@ -238,14 +279,38 @@ def boundary_crosses(uv, faces, max_pairs=3_000_000):
     if B < 4:
         return False
     P, Q = uv[bl], uv[bh]
-    if B * (B - 1) // 2 > max_pairs:
-        return True          # too big to check exhaustively; let the raster decide
-    i, j = np.triu_indices(B, 1)
+    mn, mx = np.minimum(P, Q), np.maximum(P, Q)
+    cell = float((mx - mn).max())
+    if cell <= _EPS:
+        return False
+    i0 = np.floor((mn - mn.min(axis=0)) / cell).astype(np.int64)
+    i1 = np.floor((mx - mn.min(axis=0)) / cell).astype(np.int64)
+    nx = i1[:, 0] - i0[:, 0] + 1
+    ny = i1[:, 1] - i0[:, 1] + 1                 # each edge spans <= 2x2 cells
+    cnt_c = nx * ny
+    seg = np.repeat(np.arange(B), cnt_c)
+    off = np.arange(cnt_c.sum()) - np.repeat(np.cumsum(cnt_c) - cnt_c, cnt_c)
+    cx = i0[seg, 0] + off % nx[seg]
+    cy = i0[seg, 1] + off // nx[seg]
+    ck = cx * (int(cy.max()) + 1) + cy
+    o = np.argsort(ck, kind="stable")
+    ck, seg = ck[o], seg[o]
+    pi, pj = [], []
+    k = 1
+    while k < len(ck):
+        same = ck[k:] == ck[:-k]
+        if not same.any():
+            break
+        pi.append(seg[:-k][same])
+        pj.append(seg[k:][same])
+        k += 1
+    if not pi:
+        return False
+    i = np.concatenate(pi)
+    j = np.concatenate(pj)
     share = (bl[i] == bl[j]) | (bl[i] == bh[j]) | (bh[i] == bl[j]) | (bh[i] == bh[j])
     i, j = i[~share], j[~share]
-    mn_i, mx_i = np.minimum(P[i], Q[i]), np.maximum(P[i], Q[i])
-    mn_j, mx_j = np.minimum(P[j], Q[j]), np.maximum(P[j], Q[j])
-    box = np.all((mn_i <= mx_j) & (mn_j <= mx_i), axis=1)
+    box = np.all((mn[i] <= mx[j]) & (mn[j] <= mx[i]), axis=1)
     i, j = i[box], j[box]
     if len(i) == 0:
         return False
@@ -327,6 +392,11 @@ def layout_quality(vertices, faces, uv, src_vertex, src_positions, hidden=None,
         "stretch_energy": float((e * a3).sum() / tot),
         "stretch_energy_p95": p95,
         "density_off_share": density_share(vertices, faces, uv),
+        # share of the [0,1] square the triangles actually cover (fill_ratio
+        # counts island bounding boxes, which flatters irregular islands)
+        "uv_coverage": float(np.abs(signed_uv_area(uv, faces)).sum()),
+        # share of surface sheared past 1.5x (checker squares into 3:2 rectangles)
+        "shear_share": bad_share(vertices, faces, uv),
         "overlap_faces": int(over.sum()),
         # share of the used texture area that more than one triangle covers
         "overlap_share": over_share,

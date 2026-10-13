@@ -149,6 +149,8 @@ export const DEFAULT_AUTO_UV_OPTIONS = {
   hide_strength: 1,
   refine_borders: true,
   border_rings: 4,
+  rejoin: true,
+  rejoin_limit: 1.45,
   ensure_disks: true,
 }
 
