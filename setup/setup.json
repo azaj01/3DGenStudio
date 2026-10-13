@@ -942,6 +942,7 @@
 						{ "Node": "22",  "Input": "glb_path",  "Name": "Source Mesh",   "Type": "Mesh" },
 						{ "Node": "38",  "Input": "value", "Name": "Resolution",  "Type": "Number", "Enums":[512,1024,1536,2048] },
 						{ "Node": "39",  "Input": "value", "Name": "Texture Size",  "Type": "Number", "Enums":[512,1024,2048,4096,8192] },
+						{ "Node": "2",  "Input": "uv_mode", "Name": "UV Mode",  "Type": "String", "Enums":["comfy_gpu","xatlas","keep_existing"] },
 						{ "Node": "40",  "Input": "value", "Name": "Seed",  "Type": "Number" },
 						{ "Node": "41",  "Input": "value", "Name": "Steps",  "Type": "Number" },
 						{ "Node": "25",  "Input": "guidance", "Name": "Guidance",  "Type": "Number" }
@@ -958,6 +959,7 @@
 						{ "Node": "22",  "Input": "glb_path",  "Name": "Source Mesh",   "Type": "Mesh" },
 						{ "Node": "38",  "Input": "value", "Name": "Resolution",  "Type": "Number", "Enums":[512,1024,1536,2048] },
 						{ "Node": "39",  "Input": "value", "Name": "Texture Size",  "Type": "Number", "Enums":[512,1024,2048,4096,8192] },
+						{ "Node": "2",  "Input": "uv_mode", "Name": "UV Mode",  "Type": "String", "Enums":["comfy_gpu","xatlas","keep_existing"] },
 						{ "Node": "40",  "Input": "value", "Name": "Seed",  "Type": "Number" },
 						{ "Node": "41",  "Input": "value", "Name": "Steps",  "Type": "Number" },
 						{ "Node": "25",  "Input": "guidance", "Name": "Guidance",  "Type": "Number" },
@@ -1006,6 +1008,7 @@
 						{ "Node": "22",  "Input": "glb_path",  "Name": "Source Mesh",   "Type": "Mesh" },
 						{ "Node": "31",  "Input": "value", "Name": "Resolution",  "Type": "Number", "Enums":[512,1024,1536,2048] },
 						{ "Node": "30",  "Input": "value", "Name": "Texture Size",  "Type": "Number", "Enums":[512,1024,2048,4096,8192] },
+						{ "Node": "2",  "Input": "uv_mode", "Name": "UV Mode",  "Type": "String", "Enums":["comfy_gpu","xatlas","keep_existing"] },
 						{ "Node": "29",  "Input": "value", "Name": "Seed",  "Type": "Number" },
 						{ "Node": "32",  "Input": "value", "Name": "Steps",  "Type": "Number" },
 						{ "Node": "24",  "Input": "guidance", "Name": "Guidance",  "Type": "Number" }
