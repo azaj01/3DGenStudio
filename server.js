@@ -11464,40 +11464,131 @@ function resolveComfySubPath(comfyPath, relativePath, modelsPath) {
   return path.join(comfyPath, normalizedRelative);
 }
 
-async function downloadFileWithProgress(url, destinationPath, onChunk) {
-  const response = await fetch(url);
-  if (!response.ok || !response.body) {
-    throw new Error(`Download failed (${response.status} ${response.statusText})`);
-  }
+// Multi-GB model files from Hugging Face's CDN regularly stall or drop mid-stream
+// (undici's UND_ERR_BODY_TIMEOUT after 5 silent minutes, ECONNRESET, "terminated").
+// So the `.part` file is never thrown away on a network error: each attempt asks
+// for the remaining bytes with a Range header and appends, and a later wizard run
+// resumes from whatever an earlier (crashed) run left behind.
+const SETUP_DOWNLOAD_STALL_MS = 60000;
+const SETUP_DOWNLOAD_RETRY_WAITS_MS = [3000, 10000, 20000, 30000, 60000, 60000, 120000, 120000];
 
-  const totalBytes = Number(response.headers.get('content-length')) || 0;
-  const tempPath = `${destinationPath}.part`;
-  const writeStream = createWriteStream(tempPath);
+class PermanentDownloadError extends Error {}
 
-  let receivedBytes = 0;
+function parseContentRange(value) {
+  // "bytes 100-199/1000" or "bytes */1000"
+  const match = /^bytes\s+(?:(\d+)-(\d+)|\*)\/(\d+|\*)$/i.exec(String(value || '').trim());
+  if (!match) return null;
+  return {
+    start: match[1] != null ? Number(match[1]) : null,
+    total: match[3] !== '*' ? Number(match[3]) : null
+  };
+}
 
+async function downloadAttempt(url, tempPath, onChunk) {
+  const offset = (await fileSizeOrNull(tempPath)) || 0;
+  const controller = new AbortController();
+  let stallTimer = null;
+  const armStallTimer = () => {
+    clearTimeout(stallTimer);
+    stallTimer = setTimeout(() => controller.abort(new Error(`No data received for ${SETUP_DOWNLOAD_STALL_MS / 1000}s`)), SETUP_DOWNLOAD_STALL_MS);
+  };
+
+  armStallTimer();
   try {
-    for await (const chunk of response.body) {
-      const writeOk = writeStream.write(chunk);
-      if (!writeOk) {
-        await new Promise(resolve => writeStream.once('drain', resolve));
-      }
-      receivedBytes += chunk.length;
-      onChunk?.(receivedBytes, totalBytes);
-    }
-
-    await new Promise((resolve, reject) => {
-      writeStream.end(err => err ? reject(err) : resolve());
+    const response = await fetch(url, {
+      headers: offset > 0 ? { Range: `bytes=${offset}-` } : {},
+      signal: controller.signal
     });
 
-    await fs.rename(tempPath, destinationPath);
-  } catch (err) {
-    writeStream.destroy();
-    try { await fs.unlink(tempPath); } catch { /* best-effort cleanup */ }
-    throw err;
-  }
+    if (response.status === 416) {
+      // Range starts at/after the end: the .part is either already complete or
+      // longer than the file (upstream changed). Either way this response has no body.
+      const range = parseContentRange(response.headers.get('content-range'));
+      await response.body?.cancel().catch(() => {});
+      if (range?.total != null && range.total === offset) {
+        return { receivedBytes: offset, totalBytes: offset, complete: true };
+      }
+      await fs.unlink(tempPath).catch(() => {});
+      throw new Error('Partial download did not match the remote file; restarting from scratch');
+    }
 
-  return { receivedBytes, totalBytes };
+    if (!response.ok || !response.body) {
+      const err = new Error(`Download failed (${response.status} ${response.statusText})`);
+      const transient = response.status === 408 || response.status === 429 || response.status >= 500;
+      throw transient ? err : Object.assign(new PermanentDownloadError(err.message), { status: response.status });
+    }
+
+    let startAt = 0;
+    let totalBytes = Number(response.headers.get('content-length')) || 0;
+    if (response.status === 206) {
+      const range = parseContentRange(response.headers.get('content-range'));
+      if (range?.start !== offset) {
+        await response.body.cancel().catch(() => {});
+        await fs.unlink(tempPath).catch(() => {});
+        throw new Error('Server resumed at an unexpected offset; restarting from scratch');
+      }
+      startAt = offset;
+      totalBytes = range.total ?? (offset + totalBytes);
+    }
+    // A 200 means the server ignored the Range header: start the file over.
+
+    const writeStream = createWriteStream(tempPath, { flags: startAt > 0 ? 'a' : 'w' });
+    let receivedBytes = startAt;
+    try {
+      onChunk?.(receivedBytes, totalBytes);
+      for await (const chunk of response.body) {
+        armStallTimer();
+        if (!writeStream.write(chunk)) {
+          await new Promise(resolve => writeStream.once('drain', resolve));
+        }
+        receivedBytes += chunk.length;
+        onChunk?.(receivedBytes, totalBytes);
+      }
+    } finally {
+      await new Promise(resolve => writeStream.end(resolve));
+    }
+
+    if (totalBytes > 0 && receivedBytes < totalBytes) {
+      throw new Error(`Connection closed early (${receivedBytes} of ${totalBytes} bytes)`);
+    }
+    return { receivedBytes, totalBytes, complete: true };
+  } catch (err) {
+    if (controller.signal.aborted && controller.signal.reason instanceof Error) {
+      throw controller.signal.reason;
+    }
+    throw err;
+  } finally {
+    clearTimeout(stallTimer);
+  }
+}
+
+async function downloadFileWithProgress(url, destinationPath, onChunk, onRetry) {
+  const tempPath = `${destinationPath}.part`;
+  let failuresWithoutProgress = 0;
+
+  for (;;) {
+    const sizeBefore = (await fileSizeOrNull(tempPath)) || 0;
+    try {
+      const result = await downloadAttempt(url, tempPath, onChunk);
+      await fs.rename(tempPath, destinationPath);
+      return { receivedBytes: result.receivedBytes, totalBytes: result.totalBytes };
+    } catch (err) {
+      if (err instanceof PermanentDownloadError) throw err;
+      // The retry budget only counts attempts that got nowhere, so a flaky
+      // connection that keeps making progress can take as many resumes as it needs.
+      const sizeAfter = (await fileSizeOrNull(tempPath)) || 0;
+      failuresWithoutProgress = sizeAfter > sizeBefore ? 0 : failuresWithoutProgress + 1;
+      if (failuresWithoutProgress > SETUP_DOWNLOAD_RETRY_WAITS_MS.length) {
+        err.message = `${err.message || err} — the partial file was kept, so starting the download again resumes it`;
+        throw err;
+      }
+      const waitMs = SETUP_DOWNLOAD_RETRY_WAITS_MS[Math.max(0, failuresWithoutProgress - 1)];
+      const reason = err.cause?.code || err.code || err.message || String(err);
+      console.warn(`[setup] ${path.basename(destinationPath)}: ${reason} — resuming in ${waitMs / 1000}s`);
+      onRetry?.({ reason, waitMs, attempt: failuresWithoutProgress, maxAttempts: SETUP_DOWNLOAD_RETRY_WAITS_MS.length });
+      await new Promise(resolve => setTimeout(resolve, waitMs));
+    }
+  }
 }
 
 async function runSetupDownloads(jobId, comfyPath, files, modelsPath) {
@@ -11541,6 +11632,7 @@ async function runSetupDownloads(jobId, comfyPath, files, modelsPath) {
 
       let lastEmit = 0;
       let lastReceived = 0;
+      let lastTotal = 0;
 
       const result = await downloadFileWithProgress(file.url, destinationPath, (currentBytes, currentTotalBytes) => {
         const now = Date.now();
@@ -11549,6 +11641,7 @@ async function runSetupDownloads(jobId, comfyPath, files, modelsPath) {
         }
         lastEmit = now;
         lastReceived = currentBytes;
+        lastTotal = currentTotalBytes;
 
         publishSetupDownloadProgress(jobId, {
           status: 'downloading',
@@ -11559,6 +11652,18 @@ async function runSetupDownloads(jobId, comfyPath, files, modelsPath) {
           currentTotalBytes,
           currentPercent: currentTotalBytes > 0 ? Math.round((currentBytes / currentTotalBytes) * 100) : 0,
           overallPercent: totalExpectedBytes > 0 ? Math.min(100, Math.round(((cumulativeCompletedBytes + currentBytes) / totalExpectedBytes) * 100)) : 0
+        });
+      }, ({ reason, waitMs, attempt, maxAttempts }) => {
+        publishSetupDownloadProgress(jobId, {
+          status: 'downloading',
+          currentIndex: index,
+          totalFiles: files.length,
+          currentFile: file.fileName,
+          currentBytes: lastReceived,
+          currentTotalBytes: lastTotal,
+          currentPercent: lastTotal > 0 ? Math.round((lastReceived / lastTotal) * 100) : 0,
+          overallPercent: totalExpectedBytes > 0 ? Math.min(100, Math.round(((cumulativeCompletedBytes + lastReceived) / totalExpectedBytes) * 100)) : 0,
+          notice: `Connection interrupted (${reason}) — resuming in ${Math.round(waitMs / 1000)}s (${attempt}/${maxAttempts})`
         });
       });
 

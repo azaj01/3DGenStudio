@@ -20,11 +20,11 @@
         0
       ],
       "image": [
-        "75",
+        "88",
         0
       ],
       "mask": [
-        "76",
+        "91",
         0
       ]
     },
@@ -127,6 +127,67 @@
     "class_type": "Hy3DExportMesh",
     "_meta": {
       "title": "Hy3DExportMesh"
+    }
+  },
+  "88": {
+    "inputs": {
+      "switch": [
+        "89",
+        0
+      ],
+      "on_false": [
+        "1",
+        0
+      ],
+      "on_true": [
+        "75",
+        0
+      ]
+    },
+    "class_type": "ComfySwitchNode",
+    "_meta": {
+      "title": "If/Else Switch"
+    }
+  },
+  "89": {
+    "inputs": {
+      "value": true
+    },
+    "class_type": "PrimitiveBoolean",
+    "_meta": {
+      "title": "Fix Distortion"
+    }
+  },
+  "90": {
+    "inputs": {
+      "switch": [
+        "89",
+        0
+      ],
+      "on_false": [
+        "1",
+        1
+      ],
+      "on_true": [
+        "76",
+        0
+      ]
+    },
+    "class_type": "ComfySwitchNode",
+    "_meta": {
+      "title": "If/Else Switch"
+    }
+  },
+  "91": {
+    "inputs": {
+      "mask": [
+        "90",
+        0
+      ]
+    },
+    "class_type": "InvertMask",
+    "_meta": {
+      "title": "Invert Mask"
     }
   }
 }

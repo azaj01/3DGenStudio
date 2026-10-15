@@ -18,7 +18,7 @@ from __future__ import annotations
 import numpy as np
 
 
-def _skyline_pack(boxes, bin_w):
+def _skyline_pack(boxes, bin_w, rotate=True):
     """Place [w, h] boxes (already padded). Returns placements, used_w, used_h.
 
     placements[i] = (x, y, rotated). Skyline = list of [x, top_y, width].
@@ -75,7 +75,7 @@ def _skyline_pack(boxes, bin_w):
     for bi in order:
         _, w, h, _ = boxes[bi]
         best = None  # (top_y, x, rotated, w, h)
-        for rot, (cw, ch) in enumerate(((w, h), (h, w))):
+        for rot, (cw, ch) in enumerate(((w, h), (h, w)) if rotate else ((w, h),)):
             for start in range(len(skyline)):
                 x = skyline[start][0]
                 y = level_for(start, cw)
@@ -103,7 +103,7 @@ def _skyline_pack(boxes, bin_w):
 _WIDTHS = (0.70, 0.78, 0.86, 0.93, 1.0, 1.08, 1.17, 1.27, 1.4, 1.6)
 
 
-def _best_layout(sizes, pad):
+def _best_layout(sizes, pad, rotate=True):
     """Pack padded boxes at several bin widths; keep the one that scales largest."""
     boxes = [[i, w + pad, h + pad, None] for i, (w, h) in enumerate(sizes)]
     total = sum(b[1] * b[2] for b in boxes)
@@ -112,14 +112,14 @@ def _best_layout(sizes, pad):
     best = None
     for k in _WIDTHS:
         bin_w = max(guess * k, widest)
-        placements, used_w, used_h = _skyline_pack(boxes, bin_w)
+        placements, used_w, used_h = _skyline_pack(boxes, bin_w, rotate)
         side = max(used_w, used_h, 1e-12)
         if best is None or side < best[0]:
             best = (side, placements)
     return best
 
 
-def pack(islands, resolution=1024, padding_texels=4):
+def pack(islands, resolution=1024, padding_texels=4, rotate=True):
     """Pack a list of (V,2) islands into ``[0,1]^2``.
 
     Returns ``(packed_islands, fill_ratio)`` where ``fill_ratio`` is the share of
@@ -133,6 +133,9 @@ def pack(islands, resolution=1024, padding_texels=4):
     asset, touching islands on a large one, 48 texels on a tiny one. The scale
     is estimated, the layout made, and the estimate refined -- the gap then
     lands within a few percent of the request.
+
+    ``rotate=False`` keeps every island's orientation (needed when islands
+    were turned so world-up points up the texture).
     """
     mins, sizes = [], []
     for uv in islands:
@@ -142,12 +145,12 @@ def pack(islands, resolution=1024, padding_texels=4):
         sizes.append((float(ext[0]), float(ext[1])))
 
     pad_uv = padding_texels / float(resolution)    # wanted gap, final UV units
-    side, placements = _best_layout(sizes, 0.0)
+    side, placements = _best_layout(sizes, 0.0, rotate)
     pad = 0.0
     for _ in range(3):
         scale = 1.0 / side
         pad = pad_uv / scale                       # the same gap in island units
-        side, placements = _best_layout(sizes, pad)
+        side, placements = _best_layout(sizes, pad, rotate)
         # the padded layout is bigger, so the real scale is smaller: refine
     scale = 1.0 / side
 

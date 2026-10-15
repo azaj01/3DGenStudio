@@ -52,6 +52,14 @@ const AUTO_UV_OPTIONS = {
   border_rings: z.number().int().min(1).max(16).default(4).describe('How many face rings either side of a border it may move.'),
   rejoin: z.boolean().default(true).describe('After flattening, re-join neighbouring islands wherever the union still flattens cleanly: far fewer islands and seams for a little more distortion.'),
   rejoin_limit: z.number().min(1.05).max(3).default(1.45).describe('Shear a re-joined island may reach (95th-percentile stretch ratio). Higher = fewer islands, more distortion.'),
+  absorb_ribbons: z.boolean().default(true).describe('Lay thin strip islands (chamfers, cuffs) back onto the island they border, without re-flattening.'),
+  relax_creases: z.boolean().default(true).describe('Open the sharp creases of badly stretched islands (or split smooth ones in two) so they relax.'),
+  straighten_seams: z.boolean().default(false).describe('Re-route chart borders with a cost on turning. Helps on quad-based meshes; little effect on triangulated AI meshes.'),
+  character_rescue: z.boolean().default(true).describe('On organic models whose layout came out sheared or fragmented, also try cutting it like a character (limbs at the joints, front from back) and keep the better result.'),
+  unroll_bands: z.boolean().default(true).describe('Lay bands of revolution (treads, pipes, cans) out as exact rectangles.'),
+  stack_repeats: z.boolean().default(false).describe('Give rigid copies and rotational repeats their master\'s UVs (stacked). Stacked copies cannot be painted differently.'),
+  symmetry: z.boolean().default(false).describe('Find the mirror plane and keep a seam down it (needs a mesh whose triangles are mirrored, e.g. symmetric retopology).'),
+  orient_up: z.enum(['off', 'x', 'y', 'z']).default('off').describe('Turn every island so this world axis points up the texture (for tiling materials); packing then keeps island orientation.'),
   ensure_disks: z.boolean().default(true).describe('Cut charts that are not a disk (tubes, closed shells, handles, plates with holes that flatten badly) so they flatten without folding.')
 };
 

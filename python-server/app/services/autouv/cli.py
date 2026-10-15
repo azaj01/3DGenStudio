@@ -71,6 +71,22 @@ def _add_unwrap_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--rejoin-limit", type=float, default=1.45, dest="rejoin_limit",
                    help="shear a re-joined island may reach (p95 stretch ratio, "
                         "default 1.45); higher = fewer islands, more distortion")
+    p.add_argument("--no-ribbons", action="store_false", dest="absorb_ribbons",
+                   help="keep thin strip islands separate")
+    p.add_argument("--no-crease-relax", action="store_false", dest="relax_creases",
+                   help="do not open creases of badly stretched islands")
+    p.add_argument("--straighten", action="store_true", dest="straighten_seams",
+                   help="re-route chart borders with a turn cost (helps quad meshes)")
+    p.add_argument("--no-character", action="store_false", dest="character_rescue",
+                   help="never try the limbs/joints/front-back character layout")
+    p.add_argument("--no-band-unroll", action="store_false", dest="unroll_bands",
+                   help="flatten bands of revolution with the solver like any island")
+    p.add_argument("--stack-repeats", action="store_true", dest="stack_repeats",
+                   help="stack rigid copies and rotational repeats on one master")
+    p.add_argument("--symmetry", action="store_true",
+                   help="keep a seam down the mirror plane (mirrored meshes)")
+    p.add_argument("--orient-up", choices=["off", "x", "y", "z"], default="off", dest="orient_up",
+                   help="turn islands so this world axis points up the texture")
     p.add_argument("--no-disk-cuts", action="store_false", dest="ensure_disks",
                    help="flatten non-disk charts (tubes, closed shells) as they "
                         "are instead of cutting them open")
@@ -123,6 +139,14 @@ def _cmd_unwrap(args: argparse.Namespace) -> int:
         border_rings=args.border_rings,
         rejoin=args.rejoin,
         rejoin_limit=args.rejoin_limit,
+        absorb_ribbons=args.absorb_ribbons,
+        relax_creases=args.relax_creases,
+        straighten_seams=args.straighten_seams,
+        character_rescue=args.character_rescue,
+        unroll_bands=args.unroll_bands,
+        stack_repeats=args.stack_repeats,
+        symmetry=args.symmetry,
+        orient_up=args.orient_up,
         ensure_disks=args.ensure_disks,
         progress=None if args.quiet else _progress,
         verbose=not args.quiet,

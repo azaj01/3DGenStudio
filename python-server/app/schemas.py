@@ -83,6 +83,30 @@ class AutoUvOptions(BaseModel):
     rejoin_limit: float = Field(default=1.45, ge=1.05, le=3.0,
                                 description="Shear a re-joined island may reach (95th-percentile stretch "
                                             "ratio). Higher = fewer islands, more distortion.")
+    absorb_ribbons: bool = Field(default=True,
+                                 description="Lay thin strip islands (chamfers, cuffs) back onto the island "
+                                             "they border, without re-flattening.")
+    relax_creases: bool = Field(default=True,
+                                description="Open the sharp creases of badly stretched islands (or split smooth "
+                                            "ones in two) so they relax.")
+    straighten_seams: bool = Field(default=False,
+                                   description="Re-route chart borders with a cost on turning. Helps on quad-based "
+                                               "meshes; little effect on triangulated AI meshes.")
+    character_rescue: bool = Field(default=True,
+                                   description="On organic models whose layout came out sheared or fragmented, "
+                                               "also try cutting it like a character (limbs at the joints, front "
+                                               "from back) and keep the better result.")
+    unroll_bands: bool = Field(default=True,
+                               description="Lay bands of revolution (treads, pipes, cans) out as exact rectangles.")
+    stack_repeats: bool = Field(default=False,
+                                description="Give rigid copies and rotational repeats their master's UVs (stacked). "
+                                            "Stacked copies cannot be painted differently.")
+    symmetry: bool = Field(default=False,
+                           description="Find the mirror plane and keep a seam down it (needs a mesh whose "
+                                       "triangles are mirrored, e.g. symmetric retopology).")
+    orient_up: Literal["off", "x", "y", "z"] = Field(
+        default="off", description="Turn every island so this world axis points up the texture (for tiling "
+                                   "materials); packing then keeps island orientation.")
     ensure_disks: bool = Field(default=True,
                                description="Cut charts that are not a disk (tubes, closed shells, handles, plates "
                                            "with holes that flatten badly) so they flatten without folding.")

@@ -376,6 +376,36 @@ def seam_edges(src_vertex, faces, uv):
     return np.stack([lo[seam], hi[seam]], axis=1), int(len(two))
 
 
+def seam_turn(pairs, positions):
+    """Mean turning angle (degrees) where a seam passes straight through a vertex.
+
+    Only seam vertices with exactly two seam edges count -- junctions and ends
+    are where a seam is meant to change direction. 0 is a perfectly straight
+    run; a staircase of triangle edges reads 40-60.
+    """
+    if len(pairs) == 0:
+        return 0.0
+    v = pairs.reshape(-1)
+    other = pairs[:, ::-1].reshape(-1)
+    order = np.argsort(v, kind="stable")
+    v, other = v[order], other[order]
+    starts = np.r_[0, np.nonzero(v[1:] != v[:-1])[0] + 1]
+    counts = np.diff(np.r_[starts, len(v)])
+    two = starts[counts == 2]
+    if len(two) == 0:
+        return 0.0
+    c = positions[v[two]]
+    d1 = c - positions[other[two]]
+    d2 = positions[other[two + 1]] - c
+    n1 = np.linalg.norm(d1, axis=1)
+    n2 = np.linalg.norm(d2, axis=1)
+    ok = (n1 > 0) & (n2 > 0)
+    cosang = np.einsum("ij,ij->i", d1[ok], d2[ok]) / (n1[ok] * n2[ok])
+    turn = np.degrees(np.arccos(np.clip(cosang, -1.0, 1.0)))
+    w = 0.5 * (n1[ok] + n2[ok])
+    return float((turn * w).sum() / max(w.sum(), 1e-18))
+
+
 def layout_quality(vertices, faces, uv, src_vertex, src_positions, hidden=None,
                    resolution=1024):
     """The quality block of the unwrap stats. See the module docstring."""
@@ -401,6 +431,7 @@ def layout_quality(vertices, faces, uv, src_vertex, src_positions, hidden=None,
         # share of the used texture area that more than one triangle covers
         "overlap_share": over_share,
         "seam_length_rel": float(seam_len.sum() / np.sqrt(tot)),
+        "seam_turn_deg": seam_turn(pairs, src_positions),
     }
     if hidden is not None and len(pairs):
         h = 0.5 * (hidden[pairs[:, 0]] + hidden[pairs[:, 1]])

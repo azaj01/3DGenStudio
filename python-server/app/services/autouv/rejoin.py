@@ -52,6 +52,34 @@ def _density_drift(a3, a2):
     return float(w[off].sum() / w.sum())
 
 
+def up_coherence(verts, uv, uniq, lf, axis):
+    """How much an island's faces agree on which way is world-up (0..1).
+
+    |sum a*g| / sum a*|g| over faces, where g is the gradient of world height
+    in UV space. 1 means every face rises the same way, so one rotation can
+    point the island up the texture; walls facing four ways in one island
+    cancel out. None when the island hardly rises at all (a floor).
+    """
+    q = uv[lf]
+    p = verts[uniq][lf]
+    d1 = q[:, 1] - q[:, 0]
+    d2 = q[:, 2] - q[:, 0]
+    det = d1[:, 0] * d2[:, 1] - d1[:, 1] * d2[:, 0]
+    ok = np.abs(det) > 1e-18
+    h = p[:, :, axis]
+    dh1, dh2 = h[:, 1] - h[:, 0], h[:, 2] - h[:, 0]
+    dd = np.where(ok, det, 1.0)
+    g = np.column_stack([(dh1 * d2[:, 1] - dh2 * d1[:, 1]) / dd,
+                         (d1[:, 0] * dh2 - d2[:, 0] * dh1) / dd]) * ok[:, None]
+    a = 0.5 * np.linalg.norm(np.cross(p[:, 1] - p[:, 0], p[:, 2] - p[:, 0]), axis=1)
+    mag = (a * np.linalg.norm(g, axis=1)).sum()
+    e3 = np.linalg.norm(p[:, [1, 2, 0]] - p, axis=2).sum()
+    e2 = np.linalg.norm(q[:, [1, 2, 0]] - q, axis=2).sum()
+    if mag <= 1e-18 or mag / max(a.sum(), 1e-18) * (e2 / max(e3, 1e-18)) < 0.1:
+        return None
+    return float(np.linalg.norm((a[:, None] * g).sum(axis=0)) / mag)
+
+
 def _island_stats(verts, uv, uniq, lf):
     """(shear p95, 3D area, bbox area at uniform density, is_sliver, density drift)."""
     lv = verts[uniq]
@@ -71,9 +99,10 @@ def _island_stats(verts, uv, uniq, lf):
     return p95, area3, float(ext[0] * ext[1]), sliver, drift
 
 
-def rejoin_islands(mesh, work, flatten, flatten_fast=None, limit=1.45, give=1.02, floor=1.45,
+def rejoin_islands(mesh, work, flatten, flatten_fast=None, up_axis=None, keep_rows=None,
+                   limit=1.45, give=1.02, floor=1.45,
                    tiny=0.0015, box_slack=1.15, cap=0.09, drift_limit=0.10, rounds=8,
-                   budget=30.0,
+                   max_tries=None, budget=120.0,
                    progress=None):
     """Re-join adjacent islands of ``work`` where the union flattens as well.
 
@@ -83,6 +112,17 @@ def rejoin_islands(mesh, work, flatten, flatten_fast=None, limit=1.45, give=1.02
     ``flatten_fast`` (same contract, cheaper -- LSCM alone) screens every
     candidate first; most joins are refused, so the full flatten then runs
     only on the few that pass. Returns ``(work, stats)``.
+
+    ``up_axis`` (world axis index) refuses joins that leave an island with no
+    consistent "up" (see :func:`up_coherence`) -- needed when islands will be
+    turned so that axis points up the texture.
+
+    ``keep_rows`` (bool per ``mesh.adjacency`` row) marks edges that must stay
+    seams -- a symmetry mid-line; pairs bordering on one are never joined.
+
+    ``max_tries`` bounds the work deterministically (default 6 x islands +
+    100). ``budget`` (seconds) is only a safety stop: a time limit that binds
+    makes the result depend on how busy the machine is.
     """
     verts = mesh.vertices
     adj = mesh.adjacency
@@ -94,6 +134,8 @@ def rejoin_islands(mesh, work, flatten, flatten_fast=None, limit=1.45, give=1.02
     stats = {"joined": 0, "tried": 0, "rounds": 0, "reverted_rounds": 0}
 
     island = [_island_stats(verts, r[0], r[1], r[2]) for _, r in work]
+    if max_tries is None:
+        max_tries = 6 * len(work) + 100
     # A refused pair stays refused while neither island changes, and most of
     # every round's candidates are pairs an earlier round already refused.
     refused = set()
@@ -113,7 +155,7 @@ def rejoin_islands(mesh, work, flatten, flatten_fast=None, limit=1.45, give=1.02
     stats["shear_share_before"] = start_bad
 
     for rnd in range(rounds):
-        if time.time() - t0 > budget:
+        if time.time() - t0 > budget or stats["tried"] >= max_tries:
             break
         face_isl = np.full(mesh.n_faces, -1, dtype=np.int64)
         for i, (fids, _) in enumerate(work):
@@ -125,7 +167,12 @@ def rejoin_islands(mesh, work, flatten, flatten_fast=None, limit=1.45, give=1.02
         lo, hi = np.minimum(ia[cross], ib[cross]), np.maximum(ia[cross], ib[cross])
         n = len(work)
         key, inv = np.unique(lo * n + hi, return_inverse=True)
-        border = np.bincount(np.asarray(inv).ravel(), weights=elen[cross])
+        inv = np.asarray(inv).ravel()
+        border = np.bincount(inv, weights=elen[cross])
+        locked = np.zeros(len(key), dtype=bool)
+        if keep_rows is not None:
+            locked = np.bincount(inv, weights=keep_rows[cross].astype(np.float64),
+                                 minlength=len(key)) > 0
         order = np.argsort(-border)
 
         snapshot = (list(work), list(island))
@@ -134,10 +181,10 @@ def rejoin_islands(mesh, work, flatten, flatten_fast=None, limit=1.45, give=1.02
         new_island = []
         joined_round = 0
         for k in order:
-            if time.time() - t0 > budget:
+            if time.time() - t0 > budget or stats["tried"] >= max_tries:
                 break
             a, b = int(key[k] // n), int(key[k] % n)
-            if a in used or b in used:
+            if a in used or b in used or locked[k]:
                 continue
             fa_, ra = work[a]
             fb_, rb = work[b]
@@ -176,6 +223,12 @@ def rejoin_islands(mesh, work, flatten, flatten_fast=None, limit=1.45, give=1.02
                 # panel is exactly how an atlas fills up with L-shapes.
                 if not crumb and su[2] > box_slack * (sa[2] + sb[2]):
                     return None, "box"
+                if up_axis is not None:
+                    cu = up_coherence(verts, uv, uniq, lf, up_axis)
+                    parts = [up_coherence(verts, r[0], r[1], r[2], up_axis) for r in (ra, rb)]
+                    parts = [c for c in parts if c is not None]
+                    if cu is not None and parts and cu < 0.85 and cu < min(parts) - 0.05:
+                        return None, "up"
                 return su, None
 
             # Screen with LSCM alone. It is the least-shear flattening there

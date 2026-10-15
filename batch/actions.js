@@ -248,6 +248,19 @@ const ACTION_DESCRIPTORS = {
       number('arap_iters', 'ARAP iterations', 4, '0 disables ARAP (LSCM/planar only)', { min: 0, max: 100, step: 1 }),
       toggle('rejoin', 'Re-join islands', true, 'After flattening, merge neighbouring islands wherever the union still flattens cleanly: fewer islands and seams, a little more distortion'),
       number('rejoin_limit', 'Join strength', 1.45, 'How much shear a re-joined island may reach. Higher = fewer islands, more distortion', { min: 1.05, max: 3, step: 0.05 }),
+      toggle('absorb_ribbons', 'Absorb strip islands', true, 'Lay thin strips (chamfers, cuffs) back onto the island they border'),
+      toggle('relax_creases', 'Relax stretched islands', true, 'Open the sharp creases of badly stretched islands, or split smooth ones in two'),
+      toggle('straighten_seams', 'Straighten seams', false, 'Re-route chart borders with a cost on turning. Helps on quad-based meshes'),
+      toggle('character_rescue', 'Character layout', true, 'On organic models that come out sheared or fragmented, also try cutting limbs at the joints and front from back, and keep the better result'),
+      toggle('unroll_bands', 'Unroll bands', true, 'Lay treads, pipes and cans out as exact rectangles'),
+      toggle('stack_repeats', 'Stack repeats', false, 'Rigid copies and rotational repeats share their master\'s UVs. Stacked copies cannot be painted differently'),
+      toggle('symmetry', 'Seam on mirror plane', false, 'Find the mirror plane and keep a seam down it (needs mirrored triangles)'),
+      choice('orient_up', 'World up', 'off', 'Turn islands so this world axis points up the texture (tiling materials)', [
+        { value: 'off', label: 'Off' },
+        { value: 'y', label: 'Y (glTF up)' },
+        { value: 'z', label: 'Z' },
+        { value: 'x', label: 'X' }
+      ]),
       toggle('ensure_disks', 'Cut non-disk charts', true, 'Open tubes, closed shells and handled charts with the cheapest cut so they flatten without folding'),
       // Packing
       {

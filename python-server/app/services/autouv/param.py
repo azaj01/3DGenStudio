@@ -319,11 +319,11 @@ def _flatten(lv, lf, method="auto", arap_iters=4):
             lscm_uv = uv
             if method in ("auto", "lscm"):
                 ad, ar = distortion(lv, lf, uv)
-                candidates.append(("lscm", uv, ad, ar, count_flips(lf, uv), island_overlap(uv, lf)))
+                candidates.append(["lscm", uv, ad, ar, count_flips(lf, uv), None])
     if method in ("auto", "planar", "arap") or not candidates:
         uv = planar(lv, lf)
         ad, ar = distortion(lv, lf, uv)
-        candidates.append(("planar", uv, ad, ar, count_flips(lf, uv), island_overlap(uv, lf)))
+        candidates.append(["planar", uv, ad, ar, count_flips(lf, uv), None])
 
     # ARAP: refine the best available initialisation toward an isometric map.
     # Conformal LSCM preserves angles but lets area (texel density) drift on the
@@ -336,9 +336,15 @@ def _flatten(lv, lf, method="auto", arap_iters=4):
             if count_flips(lf, uv) > len(lf) // 2:
                 uv[:, 1] *= -1.0
             ad, ar = distortion(lv, lf, uv)
-            candidates.append(("arap", uv, ad, ar, count_flips(lf, uv), island_overlap(uv, lf)))
+            candidates.append(["arap", uv, ad, ar, count_flips(lf, uv), None])
 
-    return min(candidates, key=_score)
+    # Flips rank first, so self-overlap only decides between the candidates
+    # tied on the fewest flips -- the raster is the expensive part, and on a
+    # noisy chart most candidates would otherwise pay for it.
+    fewest = min(c[4] for c in candidates)
+    for c in candidates:
+        c[5] = island_overlap(c[1], lf) if c[4] == fewest else 1.0
+    return tuple(min(candidates, key=_score))
 
 
 # A flattening whose island overlaps itself by more than this share is not
@@ -360,7 +366,7 @@ def _score(c):
 
 
 def parameterize_chart(vertices, faces, face_ids, method="auto", arap_iters=4,
-                       vertex_weight=None, make_disk=True, fast=False):
+                       vertex_weight=None, make_disk=True, fast=False, cut_pairs=None):
     """Flatten one chart. Returns (local_uv, uniq_vertex_ids, local_faces, info).
 
     The chart is first made manifold (:func:`topology.split_corners`) and, with
@@ -378,13 +384,27 @@ def parameterize_chart(vertices, faces, face_ids, method="auto", arap_iters=4,
     (visible) places. ``fast`` tries LSCM alone and only falls back to the full
     best-of search when LSCM flips or folds over itself; it is what the
     chart-merge and border-move validations use.
+
+    ``cut_pairs`` is an optional (K, 2) array of vertex pairs (ids into
+    ``vertices``) to open inside the chart -- creases slit so a stretched
+    chart can relax. Pairs that are not interior edges of the chart are
+    ignored.
     """
     lv0, lf0, uniq0 = _chart_local(vertices, faces, face_ids)
     info = {"method": None, "angle_d": None, "area_d": None, "flips": 0,
             "cut": "disk", "cut_edges": 0, "components": 1}
 
     fn = _topology.face_normals(lv0, lf0)
-    lf1, orig1, _, n_comp = _topology.split_corners(lf0, len(lv0), fn)
+    cut_keys = None
+    if cut_pairs is not None and len(cut_pairs):
+        cp = np.asarray(cut_pairs, dtype=np.int64)
+        pos = np.searchsorted(uniq0, cp)
+        pos = np.clip(pos, 0, len(uniq0) - 1)
+        inside = np.all(uniq0[pos] == cp, axis=1)
+        a, b = pos[inside, 0], pos[inside, 1]
+        cut_keys = np.minimum(a, b) * np.int64(len(lv0)) + np.maximum(a, b)
+        info["slit_edges"] = int(inside.sum())
+    lf1, orig1, _, n_comp = _topology.split_corners(lf0, len(lv0), fn, cut_keys=cut_keys)
     info["components"] = n_comp
     if n_comp > 1:
         # Only reachable through the merge validation (the unwrapper splits

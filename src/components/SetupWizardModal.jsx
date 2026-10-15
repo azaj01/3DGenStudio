@@ -657,6 +657,9 @@ export default function SetupWizardModal({ onComplete, onClose }) {
               </div>
             </div>
 
+            {downloadInProgress && downloadEvent?.notice && (
+              <p className="setup-wizard__hint">{downloadEvent.notice}</p>
+            )}
             {downloadError && <div className="setup-wizard__error">{downloadError}</div>}
 
             <div className="setup-wizard__actions">
@@ -668,6 +671,16 @@ export default function SetupWizardModal({ onComplete, onClose }) {
               >
                 Back
               </button>
+              {downloadError && (
+                <button
+                  type="button"
+                  className="projects-page__btn-secondary"
+                  onClick={handleStartDownload}
+                  title="Already-downloaded files are skipped and the interrupted file continues where it stopped"
+                >
+                  Resume Download
+                </button>
+              )}
               <button
                 type="button"
                 className="projects-page__btn-primary"

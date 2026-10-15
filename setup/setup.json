@@ -1180,7 +1180,8 @@
 			"Inputs": [
 				{ "Node": "1", "Input": "image",  "Name": "Source Image", "Type": "Image" },
 				{ "Node": "27",  "Input": "max_facenum",  "Name": "Target Face Number",   "Type": "Number" },
-				{ "Node": "5",  "Input": "seed",  "Name": "Seed",   "Type": "Number" }
+				{ "Node": "5",  "Input": "seed",  "Name": "Seed",   "Type": "Number" },
+				{ "Node": "89",  "Input": "value",  "Name": "Fix Distortion",   "Type": "Boolean" }
 			],
 			"Outputs": [
 				{ "Node": "87", "Name": "Save Mesh", "Type": "Mesh" }

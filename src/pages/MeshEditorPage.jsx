@@ -5138,6 +5138,8 @@ export default function MeshEditorPage() {
         if (t.density_off_share != null) rows.push({ label: 'Texel density off >25%', value: `${(t.density_off_share * 100).toFixed(1)}%` })
         if (t.shear_share != null) rows.push({ label: 'Sheared >1.5x', value: `${(t.shear_share * 100).toFixed(1)}%` })
         if (t.uv_coverage != null) rows.push({ label: 'UV coverage', value: `${(t.uv_coverage * 100).toFixed(0)}%` })
+        if (t.character_rescue === 'kept') rows.push({ label: 'Layout', value: 'Character (limbs / joints)' })
+        if (t.repeat_faces_stacked > 0) rows.push({ label: 'Stacked repeats', value: `${t.repeat_faces_stacked} faces` })
         if (t.seam_visible_share != null) rows.push({ label: 'Seams on open surface', value: `${(t.seam_visible_share * 100).toFixed(0)}%` })
         if (t.mean_angle_distortion != null) rows.push({ label: 'Angle distortion', value: t.mean_angle_distortion.toFixed(3) })
         return rows

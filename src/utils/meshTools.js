@@ -151,6 +151,14 @@ export const DEFAULT_AUTO_UV_OPTIONS = {
   border_rings: 4,
   rejoin: true,
   rejoin_limit: 1.45,
+  absorb_ribbons: true,
+  relax_creases: true,
+  straighten_seams: false,
+  character_rescue: true,
+  unroll_bands: true,
+  stack_repeats: false,
+  symmetry: false,
+  orient_up: 'off',
   ensure_disks: true,
 }
 

@@ -99,6 +99,15 @@ export default function AutoUvToolsPanel({
           value={o.border_rings} onChange={v => setOption('border_rings', v)}
           disabled={fieldsDisabled || !o.refine_borders}
           hint="How many face rings either side of a border it may move" />
+        <ToggleField label="Straighten seams" value={o.straighten_seams}
+          onChange={v => setOption('straighten_seams', v)} disabled={fieldsDisabled}
+          hint="Re-route chart borders with a cost on turning. Helps on quad-based meshes; little effect on triangulated AI meshes" />
+        <ToggleField label="Character layout" value={o.character_rescue}
+          onChange={v => setOption('character_rescue', v)} disabled={fieldsDisabled}
+          hint="On organic models that come out sheared or fragmented, also try cutting limbs at the joints and front from back, and keep the better result" />
+        <ToggleField label="Seam on mirror plane" value={o.symmetry}
+          onChange={v => setOption('symmetry', v)} disabled={fieldsDisabled}
+          hint="Find the mirror plane and keep a seam down it (needs mirrored triangles, e.g. symmetric retopology)" />
       </div>
 
       <div className="mesh-editor-panel__section">
@@ -120,6 +129,15 @@ export default function AutoUvToolsPanel({
           value={o.rejoin_limit} onChange={v => setOption('rejoin_limit', v)}
           disabled={fieldsDisabled || !o.rejoin}
           hint="How much shear a re-joined island may reach. Higher = fewer islands, more distortion" />
+        <ToggleField label="Relax stretched islands" value={o.relax_creases}
+          onChange={v => setOption('relax_creases', v)} disabled={fieldsDisabled}
+          hint="Open the sharp creases of badly stretched islands, or split smooth ones in two" />
+        <ToggleField label="Absorb strip islands" value={o.absorb_ribbons}
+          onChange={v => setOption('absorb_ribbons', v)} disabled={fieldsDisabled}
+          hint="Lay thin strips (chamfers, cuffs) back onto the island they border" />
+        <ToggleField label="Unroll bands" value={o.unroll_bands}
+          onChange={v => setOption('unroll_bands', v)} disabled={fieldsDisabled}
+          hint="Lay treads, pipes and cans out as exact rectangles" />
         <ToggleField label="Cut non-disk charts" value={o.ensure_disks}
           onChange={v => setOption('ensure_disks', v)} disabled={fieldsDisabled}
           hint="Open tubes, closed shells and handled charts with the cheapest cut so they flatten without folding" />
@@ -132,6 +150,17 @@ export default function AutoUvToolsPanel({
           options={[256, 512, 1024, 2048, 4096, 8192].map(n => ({ value: String(n), label: `${n} px` }))} />
         <RangeField label="Padding" suffix=" texels" min={0} max={64} step={1}
           value={o.padding_texels} onChange={v => setOption('padding_texels', v)} disabled={fieldsDisabled} />
+        <ToggleField label="Stack repeats" value={o.stack_repeats}
+          onChange={v => setOption('stack_repeats', v)} disabled={fieldsDisabled}
+          hint="Rigid copies and rotational repeats share their master's UVs. Stacked copies cannot be painted differently" />
+        <SelectField label="World up" value={o.orient_up} onChange={v => setOption('orient_up', v)} disabled={fieldsDisabled}
+          hint="Turn islands so this world axis points up the texture (tiling bark, brick, rust). Islands then pack unrotated"
+          options={[
+            { value: 'off', label: 'Off' },
+            { value: 'y', label: 'Y (glTF up)' },
+            { value: 'z', label: 'Z' },
+            { value: 'x', label: 'X' },
+          ]} />
       </div>
 
       <div className="mesh-editor-panel__section">

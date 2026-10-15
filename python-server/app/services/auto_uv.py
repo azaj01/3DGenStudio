@@ -49,7 +49,8 @@ _UV_STAGE_RANGES = {
     "refine": (0.20, 0.45),
     "borders": (0.45, 0.60),
     "parameterize": (0.60, 0.80),
-    "rejoin": (0.80, 0.93),
+    "rejoin": (0.80, 0.86),
+    "rescue": (0.86, 0.93),
     "metrics": (0.93, 0.96),
 }
 _UV_STAGE_LABELS = {
@@ -60,6 +61,8 @@ _UV_STAGE_LABELS = {
     "borders": "Moving seams to hidden edges",
     "parameterize": "Flattening charts",
     "rejoin": "Re-joining islands",
+    "straighten": "Straightening seams",
+    "rescue": "Trying a character layout",
     "metrics": "Measuring the layout",
 }
 
@@ -100,6 +103,14 @@ def run_auto_uv(mesh: trimesh.Trimesh, options: AutoUvOptions, progress=None,
         border_rings=options.border_rings,
         rejoin=options.rejoin,
         rejoin_limit=options.rejoin_limit,
+        absorb_ribbons=options.absorb_ribbons,
+        relax_creases=options.relax_creases,
+        straighten_seams=options.straighten_seams,
+        character_rescue=options.character_rescue,
+        unroll_bands=options.unroll_bands,
+        stack_repeats=options.stack_repeats,
+        symmetry=options.symmetry,
+        orient_up=options.orient_up,
         ensure_disks=options.ensure_disks,
         progress=unwrap_progress,
         verbose=False,

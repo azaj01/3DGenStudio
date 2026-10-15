@@ -17,6 +17,13 @@ from . import metrics as _metrics
 from . import topology as _topology
 from . import border as _border
 from . import rejoin as _rejoin
+from . import ribbons as _ribbons
+from . import straighten as _straighten
+from . import creases as _creases
+from . import planner as _planner
+from . import repeats as _repeats
+from . import spin as _spin
+from . import symmetry as _symmetry
 
 
 def _split_disconnected(mesh, labels):
@@ -138,6 +145,55 @@ def _fold_halves(mesh, fids, uv=None, lf=None, seeds="overlap"):
         _, _, comp, n_comp = _topology.split_corners(lf, len(lv), _topology.face_normals(lv, lf))
         pieces.extend(sub[comp == c] for c in range(n_comp))
     return pieces
+
+
+def _work_quality(mesh, work):
+    """Summary of a finished layout, for choosing between two segmentations.
+
+    ``(islands, shear_share, density_off, overlap_area_share)``: islands is the
+    count, shear_share the area sheared past 1.5x, density_off the area whose
+    texel density is >25% off once every island is normalised (as packing
+    will), and overlap the self-overlapping area.
+    """
+    verts = mesh.vertices
+    tot = float(mesh.face_areas.sum()) or 1.0
+    bad = drift = over = 0.0
+    for fids, (uv, uniq, lf, info) in work:
+        lv = verts[uniq]
+        r, a3 = _metrics.face_anisotropy(lv, lf, uv)
+        a2 = np.abs(_metrics.signed_uv_area(uv, lf))
+        bad += float(a3[r > 1.5].sum())
+        s3, s2 = a3.sum(), a2.sum()
+        if s3 > 0 and s2 > 0:
+            with np.errstate(divide="ignore", invalid="ignore"):
+                d = np.sqrt(a2 / np.where(a3 > 0, a3, np.inf)) * np.sqrt(s3 / s2)
+            drift += float(a3[(a3 > 0) & ((d < 0.8) | (d > 1.25))].sum())
+        over += float(info["overlap"]) * float(s3)
+    return len(work), bad / tot, drift / tot, over / tot
+
+
+def _looks_organic(mesh, tol_deg=5.0, max_aligned=0.15):
+    """A body, not a machine. Gates the character re-plan.
+
+    Counting sharp edges does not work: decimation leaves big dihedral angles
+    all over a genuinely smooth surface (43% of an AI character's edge length
+    is over 30 degrees). What does separate them is how much surface faces
+    exactly along an axis -- walls, floors, panels: 30-60% on buildings and
+    props, 2-3% on characters and heads. The model's own principal axes are
+    tried too, so a rotated prop still reads as a prop.
+    """
+    a = mesh.face_areas
+    n = mesh.face_normals
+    tot = a.sum()
+    if tot <= 0:
+        return False
+    v = mesh.vertices - mesh.vertices.mean(axis=0)
+    _, vecs = np.linalg.eigh(v.T @ v)
+    best = 0.0
+    for frame in (np.eye(3), vecs):
+        c = np.abs(n @ frame).max(axis=1)
+        best = max(best, float(a[c > np.cos(np.radians(tol_deg))].sum() / tot))
+    return best <= max_aligned
 
 
 def _duplicate_faces(faces):
@@ -277,8 +333,16 @@ def unwrap(
     hide_strength: float = 1.0,
     refine_borders: bool = True,
     border_rings: int = 4,
+    straighten_seams: bool = False,
+    relax_creases: bool = True,
+    character_rescue: bool = True,
+    stack_repeats: bool = False,
+    orient_up: str = "off",
+    unroll_bands: bool = True,
+    symmetry: bool = False,
     rejoin: bool = True,
     rejoin_limit: float = 1.45,
+    absorb_ribbons: bool = True,
     ensure_disks: bool = True,
     progress=None,
     verbose: bool = True,
@@ -316,8 +380,36 @@ def unwrap(
 
     full_mesh = mesh
     keep_ids, dup_ids, dup_keeper = _duplicate_faces(mesh.faces)
-    if len(dup_ids):
-        mesh = Mesh(full_mesh.vertices, full_mesh.faces[keep_ids])
+    # Every stacked face gets its master's UVs at the end: stack_keeper is the
+    # master (full-mesh face id) and stack_perm[j] the master corner that
+    # copy corner j lies on. Duplicates match by vertex id.
+    fullF = full_mesh.faces
+    dup_perm = np.argmax(fullF[dup_ids][:, :, None] == fullF[dup_keeper][:, None, :], axis=2)
+    stack = {int(d): (int(k), p) for d, k, p in zip(dup_ids, dup_keeper, dup_perm)}
+    n_repeat_faces = 0
+    if stack_repeats:
+        # Rigid copies and rotational repeats share their master's islands.
+        sub = Mesh(full_mesh.vertices, fullF[keep_ids])
+        found = _repeats.find_repeats(sub)
+        for cf, (mf, p) in found.items():
+            stack[int(keep_ids[cf])] = (int(keep_ids[mf]), np.asarray(p))
+        n_repeat_faces = len(found)
+        # a duplicate of a face that is itself now a copy follows it to the master
+        for d in [int(x) for x in dup_ids]:
+            k, p = stack[d]
+            if k in stack and k not in dup_ids:
+                m, pk = stack[k]
+                stack[d] = (m, np.asarray(pk)[p])
+        if verbose and found:
+            print(f"[repeats] {len(found)} faces stacked on their masters")
+    if stack:
+        stacked = np.zeros(full_mesh.n_faces, dtype=bool)
+        stacked[list(stack)] = True
+        keep_ids = np.nonzero(~stacked)[0]
+        mesh = Mesh(full_mesh.vertices, fullF[keep_ids])
+    stack_ids = np.array(sorted(stack), dtype=np.int64)
+    stack_keeper = np.array([stack[i][0] for i in stack_ids], dtype=np.int64)
+    stack_perm = np.array([stack[i][1] for i in stack_ids], dtype=np.int64).reshape(-1, 3)
 
     # ---- where seams are least visible -------------------------------------
     # One score per vertex (see autouv.hidden). It prices every seam: the chart
@@ -360,53 +452,212 @@ def unwrap(
             make_disk=ensure_disks,
         )
 
-    # ---- move each chart border onto the cheapest seam near it --------------
-    t_b0 = time.time()
-    border_stats = None
-    if refine_borders and border_rings > 0 and int(labels.max()) > 0:
-        score_cache: dict = {}
-        areas = mesh.face_areas
-
-        def chart_score(fids):
-            key = fids.tobytes()
-            hit = score_cache.get(key)
-            if hit is None:
-                _, _, _, info = _param.parameterize_chart(
-                    mesh.vertices, mesh.faces, fids, method=method, arap_iters=arap_iters,
-                    vertex_weight=vertex_weight, make_disk=ensure_disks, fast=True)
-                hit = (info["flips"], info["overlap"],
-                       info["angle_d"] + 2.0 * info["area_d"], float(areas[fids].sum()))
-                score_cache[key] = hit
-            return hit
-
-        def keep_move(old_a, old_b, new_a, new_b):
-            old = [chart_score(old_a), chart_score(old_b)]
-            new = [chart_score(new_a), chart_score(new_b)]
-            if sum(n[0] for n in new) > sum(o[0] for o in old):
-                return False
-            worst_old = max(o[1] for o in old)
-            if any(n[1] > max(_param.OVERLAP_TOL, worst_old) for n in new):
-                return False
-            d_old = sum(o[2] * o[3] for o in old) / max(sum(o[3] for o in old), 1e-12)
-            d_new = sum(n[2] * n[3] for n in new) / max(sum(n[3] for n in new), 1e-12)
-            return d_new <= d_old * 1.01 + 1e-3
-
-        labels, border_stats = _border.refine_borders(
-            mesh, labels, _border.seam_costs(mesh, vertex_weight),
-            rings=int(border_rings), validate=keep_move,
-            progress=lambda p: report("borders", p))
-        if verbose:
-            print(f"[borders] {border_stats}")
-    t_border = time.time()
-
-    labels = _split_disconnected(mesh, labels)
-    n_charts = int(labels.max()) + 1
-    t_seg = time.time()
-    if verbose and refine:
-        print(f"[refine]  -> {n_charts} charts (total seg {t_seg - t0:.2f}s)")
-
     faces = mesh.faces
     verts = mesh.vertices
+    areas = mesh.face_areas
+    score_cache: dict = {}
+    up_axis = {"x": 0, "y": 1, "z": 2}.get(str(orient_up).lower())
+
+    # ---- a protected seam down the mirror plane ------------------------------
+    plane = None
+    keep_rows = None
+    keep_edges = None
+    if symmetry:
+        plane = _symmetry.find_plane(verts)
+        if plane is not None:
+            keep_rows = _symmetry.mid_line(mesh, plane)
+            if keep_rows.sum() < 8:          # plane does not run along mesh edges
+                keep_rows = None
+            else:
+                ke = np.sort(mesh.adjacency_edges[keep_rows], axis=1)
+                keep_edges = set(map(tuple, ke.tolist()))
+        if verbose:
+            print(f"[symmetry] plane={'none' if plane is None else round(plane[2], 3)} "
+                  f"mid-line edges={0 if keep_rows is None else int(keep_rows.sum())}")
+
+    # ---- the flattening helpers every later stage shares ---------------------
+    def chart_score(fids):
+        key = fids.tobytes()
+        hit = score_cache.get(key)
+        if hit is None:
+            _, _, _, info = _param.parameterize_chart(
+                verts, faces, fids, method=method, arap_iters=arap_iters,
+                vertex_weight=vertex_weight, make_disk=ensure_disks, fast=True)
+            hit = (info["flips"], info["overlap"],
+                   info["angle_d"] + 2.0 * info["area_d"], float(areas[fids].sum()))
+            score_cache[key] = hit
+        return hit
+
+    def keep_move(old_a, old_b, new_a, new_b):
+        """Border moves (min-cut, straightening) are kept only when the two
+        charts involved flatten at least as well as before."""
+        old = [chart_score(old_a), chart_score(old_b)]
+        new = [chart_score(new_a), chart_score(new_b)]
+        if sum(n[0] for n in new) > sum(o[0] for o in old):
+            return False
+        worst_old = max(o[1] for o in old)
+        if any(n[1] > max(_param.OVERLAP_TOL, worst_old) for n in new):
+            return False
+        d_old = sum(o[2] * o[3] for o in old) / max(sum(o[3] for o in old), 1e-12)
+        d_new = sum(n[2] * n[3] for n in new) / max(sum(n[3] for n in new), 1e-12)
+        return d_new <= d_old * 1.01 + 1e-3
+
+    def flatten(fids, cut_pairs=None):
+        res = _param.parameterize_chart(
+            verts, faces, fids, method=method, arap_iters=arap_iters,
+            vertex_weight=vertex_weight, make_disk=ensure_disks, cut_pairs=cut_pairs,
+        )
+        # Candidates are ranked on a coarse 64-texel raster, which misses thin
+        # folded slivers; measure the chosen layout properly before deciding
+        # whether it needs splitting.
+        uv, _, lf, info = res
+        if info["overlap"] > 0 or info["flips"] > 0 or _metrics.boundary_crosses(uv, lf):
+            info["overlap"] = _metrics.island_overlap(uv, lf, resolution=256)
+        return res
+
+    def flatten_fast(fids):
+        # A screen, not a layout: LSCM alone, no fallback search, coarse
+        # overlap. rejoin trusts its verdict only on shear, tearing and box
+        # growth -- the cases no other flattening could rescue.
+        return _param.parameterize_chart(
+            verts, faces, fids, method="lscm", arap_iters=0,
+            vertex_weight=vertex_weight, make_disk=ensure_disks)
+
+    def flatten_unfolded(fids, depth=0):
+        """Flatten a chart; split it by normals while it folds over itself.
+
+        A split is kept only when it lowers the folded area -- a chart whose
+        halves fold just as badly stays whole, since more seams would buy
+        nothing.
+        """
+        res = flatten(fids)
+        info = res[3]
+        if info["overlap"] <= _param.OVERLAP_TOL or depth >= 3 or len(fids) < 16:
+            return [(fids, res)]
+        before = info["overlap"] * float(areas[fids].sum())
+        best = None
+        for seeds in ("overlap", "normals"):
+            pieces = _fold_halves(mesh, fids, res[0], res[2], seeds=seeds)
+            if len(pieces) < 2 or len(pieces) > 6:
+                continue
+            parts = [(p, flatten(p)) for p in pieces]
+            if sum(r[3]["flips"] for _, r in parts) > info["flips"]:
+                continue
+            after = sum(r[3]["overlap"] * float(areas[p].sum()) for p, r in parts)
+            if best is None or after < best[0]:
+                best = (after, parts)
+        if best is None or best[0] >= 0.8 * before:
+            return [(fids, res)]
+        out = []
+        for p, r in best[1]:
+            out.extend(flatten_unfolded(p, depth + 1) if r[3]["overlap"] > _param.OVERLAP_TOL
+                       else [(p, r)])
+        return out
+
+    def layout(labels, tag="", report=report):
+        """Chart labels -> finished islands: border passes, flattening and
+        every repair after it. Returns ``(work, stats)`` where ``work`` holds
+        ``(fids, (uv, uniq, lf, info))`` per island. ``report`` receives the
+        progress of each stage (the re-plan routes it all into one stage)."""
+        st = {}
+        t_a = time.time()
+        # ---- move each chart border onto the cheapest seam near it ----------
+        if refine_borders and border_rings > 0 and int(labels.max()) > 0:
+            labels, st["borders"] = _border.refine_borders(
+                mesh, labels, _border.seam_costs(mesh, vertex_weight),
+                rings=int(border_rings), validate=keep_move,
+                progress=lambda p: report("borders", p))
+        if straighten_seams and int(labels.max()) > 0:
+            labels, st["straighten"] = _straighten.straighten_borders(
+                mesh, labels, hidden=hidden, validate=keep_move,
+                progress=lambda p: report("straighten", p))
+        if keep_rows is not None:
+            labels = _symmetry.split_by_plane(mesh, labels, plane)
+        labels = _split_disconnected(mesh, labels)
+        n0 = int(labels.max()) + 1
+        t_b = time.time()
+
+        work = []
+        for c in range(n0):
+            work.extend(flatten_unfolded(np.nonzero(labels == c)[0]))
+            report("parameterize", (c + 1) / n0)
+        st["fold_splits"] = len(work) - n0
+
+        # ---- slit or split islands that still flatten badly sheared ---------
+        if relax_creases:
+            work, st["creases"] = _creases.relax_stretched(
+                mesh, work, flatten,
+                split=lambda fids, res: _fold_halves(mesh, fids, seeds="normals"))
+        t_c = time.time()
+
+        # ---- give seams back: re-join neighbours that flatten as well together
+        if rejoin and len(work) > 1:
+            work, st["rejoin"] = _rejoin.rejoin_islands(
+                mesh, work, flatten, flatten_fast=flatten_fast, up_axis=up_axis,
+                keep_rows=keep_rows,
+                limit=rejoin_limit, floor=rejoin_limit,
+                progress=lambda p: report("rejoin", p))
+        t_d = time.time()
+
+        # ---- lay thin strip islands back onto their neighbour ----------------
+        if absorb_ribbons and len(work) > 1:
+            work, st["ribbons"] = _ribbons.absorb_ribbons(mesh, work, keep_edges=keep_edges)
+        # ---- treads, pipes, cans: exact rectangles instead of bananas -------
+        if unroll_bands:
+            work, st["bands_unrolled"] = _spin.unroll_bands(mesh, work)
+        st["times"] = {"borders": t_b - t_a, "parameterize": t_c - t_b,
+                       "rejoin": t_d - t_c}
+        if verbose:
+            print(f"[layout{tag}] {len(work)} islands  " + "  ".join(
+                f"{k}={v}" for k, v in st.items() if k != "times"))
+        return work, st
+
+    t_b0 = time.time()
+    work, lay = layout(labels)
+
+    # ---- character re-plan: limbs at the joints, front from back -----------
+    # Normal-cone charts on a body leave borders wherever the curvature budget
+    # ran out and a long tail of pieces. When the layout came out sheared or
+    # fragmented and the model looks organic, cut it the way an artist would
+    # (autouv.planner), lay that out with the same passes, keep the better.
+    rescue = "off"
+    if character_rescue and mesh.n_faces >= 200:
+        q0 = _work_quality(mesh, work)
+        if (q0[1] > 0.02 or q0[0] >= 60) and _looks_organic(mesh):
+            report("rescue", 0.0)
+            order = ["borders", "straighten", "parameterize", "rejoin"]
+
+            def rescue_report(stage, frac):
+                k = order.index(stage) if stage in order else 0
+                report("rescue", (k + float(frac)) / len(order))
+
+            work2, lay2 = layout(_planner.character_labels(mesh), tag="/character",
+                                 report=rescue_report)
+            q2 = _work_quality(mesh, work2)
+            flatter = q2[1] < q0[1]
+            simpler = q2[0] <= 0.75 * q0[0] and q2[1] <= max(q0[1], 0.09)
+            no_worse = q2[2] <= q0[2] + 0.02 and q2[3] <= q0[3] + 0.002
+            rescue = "kept" if (flatter or simpler) and no_worse else "refused"
+            if verbose:
+                print(f"[rescue] {rescue}: islands {q0[0]}->{q2[0]}  shear {q0[1]:.4f}->{q2[1]:.4f}"
+                      f"  drift {q0[2]:.4f}->{q2[2]:.4f}  overlap {q0[3]:.4f}->{q2[3]:.4f}")
+            if rescue == "kept":
+                work, lay = work2, lay2
+            report("rescue", 1.0)
+        else:
+            rescue = "not_needed"
+
+    border_stats = lay.get("borders")
+    straighten_stats = lay.get("straighten")
+    n_folds_split = lay["fold_splits"]
+    crease_stats = lay.get("creases")
+    rejoin_stats = lay.get("rejoin")
+    ribbon_stats = lay.get("ribbons")
+    t_border = t_b0 + lay["times"]["borders"]
+    t_seg = t_border
+    t_rejoin = lay["times"]["rejoin"]
+    n_charts = len(work)
+
     # Per-face-corner normals, resolved on the welded topology -- i.e. *before* the
     # seam split below -- so both copies of a seam vertex get the same value and
     # the two sides of every chart boundary shade identically.
@@ -425,87 +676,16 @@ def unwrap(
     angle_ds, area_ds, flips, methods = [], [], [], []
     cut_kinds, cut_edges, not_disk = [], 0, 0
 
-    def flatten(fids):
-        res = _param.parameterize_chart(
-            verts, faces, fids, method=method, arap_iters=arap_iters,
-            vertex_weight=vertex_weight, make_disk=ensure_disks,
-        )
-        # Candidates are ranked on a coarse 64-texel raster, which misses thin
-        # folded slivers; measure the chosen layout properly before deciding
-        # whether it needs splitting.
-        uv, _, lf, info = res
-        if info["overlap"] > 0 or info["flips"] > 0 or _metrics.boundary_crosses(uv, lf):
-            info["overlap"] = _metrics.island_overlap(uv, lf, resolution=256)
-        return res
-
-    def flatten_unfolded(fids, depth=0):
-        """Flatten a chart; split it by normals while it folds over itself.
-
-        A split is kept only when it lowers the folded area -- a chart whose
-        halves fold just as badly stays whole, since more seams would buy
-        nothing.
-        """
-        res = flatten(fids)
-        info = res[3]
-        if info["overlap"] <= _param.OVERLAP_TOL or depth >= 3 or len(fids) < 16:
-            return [(fids, res)]
-        area = mesh.face_areas
-        before = info["overlap"] * float(area[fids].sum())
-        best = None
-        for seeds in ("overlap", "normals"):
-            pieces = _fold_halves(mesh, fids, res[0], res[2], seeds=seeds)
-            if len(pieces) < 2 or len(pieces) > 6:
-                continue
-            parts = [(p, flatten(p)) for p in pieces]
-            if sum(r[3]["flips"] for _, r in parts) > info["flips"]:
-                continue
-            after = sum(r[3]["overlap"] * float(area[p].sum()) for p, r in parts)
-            if best is None or after < best[0]:
-                best = (after, parts)
-        if best is None or best[0] >= 0.8 * before:
-            return [(fids, res)]
-        parts = best[1]
-        out = []
-        for p, r in parts:
-            out.extend(flatten_unfolded(p, depth + 1) if r[3]["overlap"] > _param.OVERLAP_TOL
-                       else [(p, r)])
-        return out
-
-    work = []
-    for c in range(n_charts):
-        work.extend(flatten_unfolded(np.nonzero(labels == c)[0]))
-        report("parameterize", (c + 1) / n_charts)
-    n_folds_split = len(work) - n_charts
-
-    # ---- give seams back: re-join neighbours that flatten as well together --
-    rejoin_stats = None
-    t_r0 = time.time()
-    if rejoin and len(work) > 1:
-        def flatten_fast(fids):
-            # A screen, not a layout: LSCM alone, no fallback search, coarse
-            # overlap. rejoin trusts its verdict only on shear, tearing and box
-            # growth -- the cases no other flattening could rescue.
-            return _param.parameterize_chart(
-                verts, faces, fids, method="lscm", arap_iters=0,
-                vertex_weight=vertex_weight, make_disk=ensure_disks)
-
-        work, rejoin_stats = _rejoin.rejoin_islands(
-            mesh, work, flatten, flatten_fast=flatten_fast,
-            limit=rejoin_limit, floor=rejoin_limit,
-            budget=max(6.0, min(30.0, mesh.n_faces / 300.0)),
-            progress=lambda p: report("rejoin", p))
-        if verbose:
-            print(f"[rejoin] {rejoin_stats} in {time.time() - t_r0:.2f}s")
-    t_rejoin = time.time() - t_r0
-    n_charts = len(work)
-
     for c, (fids, (uv, uniq, lf, info)) in enumerate(work):
         if info["cut"] in ("failed", "raw"):
             not_disk += 1
         elif info["cut"] not in ("disk", "none"):
             cut_kinds.append(info["cut"])
             cut_edges += info["cut_edges"]
-        uv = _post.align_island(uv)
+        if up_axis is None:
+            uv = _post.align_island(uv)
+        else:
+            uv, _ = _post.orient_world_up(uv, verts[uniq], lf, axis=up_axis)
         islands.append(uv)
         island_uniq.append(uniq)
         island_faces.append(lf)
@@ -522,7 +702,8 @@ def unwrap(
 
     islands = _post.normalize_texel_density(islands, island_faces, island_area3d)
     packed, fill = _pack.pack(
-        islands, resolution=resolution, padding_texels=padding_texels
+        islands, resolution=resolution, padding_texels=padding_texels,
+        rotate=up_axis is None,
     )
     t_pack = time.time()
     if verbose:
@@ -587,23 +768,23 @@ def unwrap(
     if verbose:
         print(f"[quality] {quality}")
 
-    # ---- stack duplicate triangles onto their twin's UVs ---------------------
-    # After the metrics on purpose: a stacked pair covers the same texels by
-    # design and must not read as overlap.
-    if len(dup_ids):
+    # ---- stack duplicates and repeats onto their master's UVs ----------------
+    # After the metrics on purpose: a stacked copy covers the same texels as
+    # its master by design and must not read as overlap.
+    if len(stack_ids):
         pos = np.full(full_mesh.n_faces, -1, dtype=np.int64)
         pos[keep_ids] = np.arange(len(keep_ids))
-        rows = row_of_face[pos[dup_keeper]]
-        kf = out_f[rows]                                   # twin's output corners
-        dfaces = full_mesh.faces[dup_ids]
-        match = dfaces[:, :, None] == out_src[kf][:, None, :]
-        src_out = np.take_along_axis(kf, np.argmax(match, axis=2), axis=1)
+        rows = row_of_face[pos[stack_keeper]]
+        kf = out_f[rows]                                   # master's output corners
+        src_out = np.take_along_axis(kf, stack_perm, axis=1)
+        sfaces = fullF[stack_ids]
         n_new = src_out.size
-        out_v = np.concatenate([out_v, out_v[src_out].reshape(-1, 3)])
+        # A copy keeps its own position and normal (it sits elsewhere, or a
+        # back-to-back twin faces the other way) and takes only the UVs.
+        out_v = np.concatenate([out_v, full_mesh.vertices[sfaces].reshape(-1, 3)])
         out_uv = np.concatenate([out_uv, out_uv[src_out].reshape(-1, 2)])
-        # each copy keeps its own normal: a back-to-back twin faces the other way
-        out_n = np.concatenate([out_n, group_normal[corner_group[dup_ids]].reshape(-1, 3)])
-        out_src = np.concatenate([out_src, dfaces.reshape(-1)])
+        out_n = np.concatenate([out_n, group_normal[corner_group[stack_ids]].reshape(-1, 3)])
+        out_src = np.concatenate([out_src, sfaces.reshape(-1)])
         out_f = np.concatenate([out_f, voff + np.arange(n_new).reshape(-1, 3)])
         out_fc = np.concatenate([out_fc, out_fc[rows]])
 
@@ -611,6 +792,7 @@ def unwrap(
     stats = {
         "n_faces": int(full_mesh.n_faces),
         "duplicate_faces_stacked": int(len(dup_ids)),
+        "repeat_faces_stacked": int(n_repeat_faces),
         "n_charts": n_charts,
         "components_before_weld": comps_before,
         "components_after_weld": comps_after,
@@ -623,9 +805,17 @@ def unwrap(
         "method_counts": {m: int(methods.count(m)) for m in set(methods)},
         "normal_source": normal_source,
         "borders_moved": border_stats["moved"] if border_stats else 0,
+        "seams_straightened": int(straighten_stats["rerouted"]) if straighten_stats else 0,
         # extra charts made by splitting charts that folded over themselves
         "fold_splits": int(n_folds_split),
+        "character_rescue": rescue,
+        "bands_unrolled": int(lay.get("bands_unrolled", 0)),
+        "symmetry_share": round(float(plane[2]), 4) if plane is not None else 0.0,
+        "mid_line_edges": int(keep_rows.sum()) if keep_rows is not None else 0,
+        "creases_relaxed": int(crease_stats["relaxed"]) if crease_stats else 0,
+        "stretch_splits": int(crease_stats["split"]) if crease_stats else 0,
         "islands_rejoined": int(rejoin_stats["joined"]) if rejoin_stats else 0,
+        "ribbons_absorbed": int(ribbon_stats["absorbed"]) if ribbon_stats else 0,
         "charts_cut": len(cut_kinds),
         "cut_edges": int(cut_edges),
         "cut_kinds": {k: cut_kinds.count(k) for k in set(cut_kinds)},
