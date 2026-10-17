@@ -318,6 +318,43 @@ test('baked maps land in the material, factors reset where a map now drives them
   assert.ok(json.buffers[0].byteLength <= bin.length);
 });
 
+test('the texture a baked map replaces is dropped from the file, one still in use is kept', () => {
+  // A low poly that already has an albedo and an emissive map, as a textured
+  // Optimize result does.
+  const { json: lowJson, bin: lowBin } = parseGlb(tinyGlb());
+  const oldAlbedo = png('old-albedo');
+  const glow = png('glow');
+  lowJson.bufferViews.push(
+    { buffer: 0, byteOffset: 36, byteLength: oldAlbedo.length },
+    { buffer: 0, byteOffset: 36 + oldAlbedo.length + 1, byteLength: glow.length }
+  );
+  const lowBinary = Buffer.concat([Buffer.from(lowBin), oldAlbedo, Buffer.alloc(1), glow]);
+  lowJson.buffers[0].byteLength = lowBinary.length;
+  lowJson.images = [{ mimeType: 'image/png', bufferView: 1 }, { mimeType: 'image/png', bufferView: 2 }];
+  lowJson.samplers = [{ wrapS: 33071, wrapT: 33071 }];
+  lowJson.textures = [{ sampler: 0, source: 0 }, { sampler: 0, source: 1 }];
+  lowJson.materials[0].pbrMetallicRoughness.baseColorTexture = { index: 0 };
+  lowJson.materials[0].emissiveTexture = { index: 1 };
+
+  const { buffer } = applyBakedMapsToGlb(serializeGlb(lowJson, lowBinary), { base_color: png('albedo') });
+  const { json, bin } = parseGlb(buffer);
+  const material = json.materials[0];
+  const bytesOf = (textureIndex) => {
+    const view = json.bufferViews[json.images[json.textures[textureIndex].source].bufferView];
+    return bin.subarray(view.byteOffset, view.byteOffset + view.byteLength).toString('latin1');
+  };
+
+  assert.equal(json.textures.length, 2, 'the baked albedo and the emissive map — not the old albedo');
+  assert.equal(json.images.length, 2);
+  assert.equal(bytesOf(material.pbrMetallicRoughness.baseColorTexture.index), png('albedo').toString('latin1'));
+  assert.equal(bytesOf(material.emissiveTexture.index), glow.toString('latin1'));
+  assert.ok(!bin.toString('latin1').includes(oldAlbedo.toString('latin1')), 'the old albedo bytes are gone from the binary');
+  assert.equal(json.bufferViews.length, 3);
+  assert.equal(json.bufferViews[0].byteLength, 36, 'the geometry is untouched');
+  assert.equal(json.bufferViews[0].byteOffset, 0);
+  assert.ok(json.buffers[0].byteLength <= bin.length);
+});
+
 test('a primitive with no material is given one to carry the maps', () => {
   const { buffer } = applyBakedMapsToGlb(tinyGlb({ materials: [] }), { ao: png('ao') });
   const { json } = parseGlb(buffer);
