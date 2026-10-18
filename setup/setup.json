@@ -24,7 +24,7 @@
 				"Q2": { "FileName": "qwen-image-2.1-Q2_K.gguf",   "Url": "https://huggingface.co/unsloth/Qwen-Image-2.1-GGUF/resolve/main/qwen-image-2.1-Q2_K.gguf?download=true",   "Size": 2.5 }
 			},
 			"VAE":         [{ "FileName": "qwen_image_2.1_vae_bf16.safetensors",                              "Url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/vae/qwen_image_2.1_vae_bf16.safetensors?download=true",                                "Size": 0.7 }],
-			"TextEncoder": { "FileName": "qwen3vl_8b_int8_convrot.safetensors",                   "Url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_int8_convrot.safetensors?download=true",       "Size": 9.4 },		
+			"TextEncoder": [{ "FileName": "qwen3vl_8b_int8_convrot.safetensors",                   "Url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_int8_convrot.safetensors?download=true",       "Size": 9.4 }],		
 			"Workflows": [
 				{
 					"Name": "Gen Image with QwenImage21",
@@ -102,7 +102,7 @@
 				"Q3 TURBO": { "FileName": "qwen_image_2.1_turbo_Q3_K_M.gguf",   "Url": "https://huggingface.co/Abiray/Qwen-Image-2.1-Turbo-GGUF/resolve/main/qwen_image_2.1_turbo_Q3_K_M.gguf?download=true",   "Size": 3.2 }				
 			},
 			"VAE":         [{ "FileName": "qwen_image_2.1_vae_bf16.safetensors",                              "Url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/vae/qwen_image_2.1_vae_bf16.safetensors?download=true",                                "Size": 0.7 }],
-			"TextEncoder": { "FileName": "qwen3vl_8b_int8_convrot.safetensors",                   "Url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_int8_convrot.safetensors?download=true",       "Size": 9.4 },		
+			"TextEncoder": [{ "FileName": "qwen3vl_8b_int8_convrot.safetensors",                   "Url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_int8_convrot.safetensors?download=true",       "Size": 9.4 }],		
 			"Workflows": [
 				{
 					"Name": "Gen Image with QwenImage21 Turbo",
@@ -183,7 +183,7 @@
 				"Q2":   { "FileName": "qwen-image-edit-2511-Q2_K.gguf",   "Url": "https://huggingface.co/unsloth/Qwen-Image-Edit-2511-GGUF/resolve/main/qwen-image-edit-2511-Q2_K.gguf?download=true",   "Size": 7.5  }
 			},
 			"VAE":         [{ "FileName": "qwen_image_vae.safetensors",                              "Url": "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors?download=true",                                "Size": 0.3 }],
-			"TextEncoder": { "FileName": "qwen_2.5_vl_7b_fp8_scaled.safetensors",                   "Url": "https://huggingface.co/Comfy-Org/HunyuanVideo_1.5_repackaged/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors?download=true",       "Size": 9.4 },
+			"TextEncoder": [{ "FileName": "qwen_2.5_vl_7b_fp8_scaled.safetensors",                   "Url": "https://huggingface.co/Comfy-Org/HunyuanVideo_1.5_repackaged/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors?download=true",       "Size": 9.4 }],
 			"LoRA":[
 				{ "FileName": "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors", "Url": "https://huggingface.co/lightx2v/Qwen-Image-Edit-2511-Lightning/resolve/main/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors?download=true",        "Size": 0.9 },
 				{ "FileName": "QIE-2511-Studio-DeLight-5000.safetensors", "Url": "https://huggingface.co/prithivMLmods/QIE-2511-Studio-DeLight/resolve/main/QIE-2511-Studio-DeLight-5000.safetensors?download=true",        "Size": 0.2 },
@@ -386,7 +386,7 @@
 				"Q2":   { "FileName": "qwen-image-2512-Q2_K.gguf",   "Url": "https://huggingface.co/unsloth/Qwen-Image-2512-GGUF/resolve/main/qwen-image-2512-Q2_K.gguf?download=true",   "Size": 7.3  }
 			},
 			"VAE":         [{ "FileName": "qwen_image_vae.safetensors",            "Url": "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors?download=true",                          "Size": 0.3 }],
-			"TextEncoder": { "FileName": "qwen_2.5_vl_7b_fp8_scaled.safetensors", "Url": "https://huggingface.co/Comfy-Org/HunyuanVideo_1.5_repackaged/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors?download=true", "Size": 9.4 },
+			"TextEncoder": [{ "FileName": "qwen_2.5_vl_7b_fp8_scaled.safetensors", "Url": "https://huggingface.co/Comfy-Org/HunyuanVideo_1.5_repackaged/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors?download=true", "Size": 9.4 }],
 			"LoRA":[        
 				{ "FileName": "Qwen-Image-2512-Lightning-4steps-V1.0-bf16.safetensors", "Url": "https://huggingface.co/lightx2v/Qwen-Image-2512-Lightning/resolve/main/Qwen-Image-2512-Lightning-4steps-V1.0-bf16.safetensors?download=true", "Size": 0.9 }
 			],
@@ -436,7 +436,7 @@
 				"Q2":   { "FileName": "flux2-dev-Q2_K.gguf",   "Url": "https://huggingface.co/unsloth/FLUX.2-dev-GGUF/resolve/main/flux2-dev-Q2_K.gguf?download=true",   "Size": 12.9 }
 			},
 			"VAE":         [{ "FileName": "flux2-vae.safetensors",                        "Url": "https://huggingface.co/Comfy-Org/flux2-dev/resolve/main/split_files/vae/flux2-vae.safetensors?download=true",                                     "Size": 0.3  }],
-			"TextEncoder": { "FileName": "mistral_3_small_flux2_fp4_mixed.safetensors",  "Url": "https://huggingface.co/Comfy-Org/flux2-dev/resolve/main/split_files/text_encoders/mistral_3_small_flux2_fp4_mixed.safetensors?download=true",      "Size": 12.3 },
+			"TextEncoder": [{ "FileName": "mistral_3_small_flux2_fp4_mixed.safetensors",  "Url": "https://huggingface.co/Comfy-Org/flux2-dev/resolve/main/split_files/text_encoders/mistral_3_small_flux2_fp4_mixed.safetensors?download=true",      "Size": 12.3 }],
 			"ControlNet":[
 				{ "FileName": "FLUX.2-dev-Fun-Controlnet-Union.safetensors", "Url": "https://huggingface.co/alibaba-pai/FLUX.2-dev-Fun-Controlnet-Union/resolve/main/FLUX.2-dev-Fun-Controlnet-Union.safetensors?download=true", "Size": 8.2 }
 			],
@@ -506,7 +506,7 @@
 				"Q2":   { "FileName": "z-image-turbo-Q2_K.gguf",   "Url": "https://huggingface.co/unsloth/Z-Image-Turbo-GGUF/resolve/main/z-image-turbo-Q2_K.gguf?download=true",   "Size": 3.6  }
 			},
 			"VAE":         [{ "FileName": "ae.safetensors",                        "Url": "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/vae/ae.safetensors?download=true",                                     "Size": 0.3  }],
-			"TextEncoder": { "FileName": "qwen_3_4b_fp8_mixed.safetensors", "Url": "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/text_encoders/qwen_3_4b_fp8_mixed.safetensors?download=true",          "Size": 5.6 },
+			"TextEncoder": [{ "FileName": "qwen_3_4b_fp8_mixed.safetensors", "Url": "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/text_encoders/qwen_3_4b_fp8_mixed.safetensors?download=true",          "Size": 5.6 }],
 			"Workflows": [
 				{
 					"Name": "Gen Image with Z Image Turbo",
@@ -536,7 +536,7 @@
 				"Q2": { "FileName": "flux-2-klein-4b-Q2_K.gguf",   "Url": "https://huggingface.co/unsloth/FLUX.2-klein-4B-GGUF/resolve/main/flux-2-klein-4b-Q2_K.gguf?download=true",   "Size": 1.8 }
 			},
 			"VAE":         [{ "FileName": "flux2-vae.safetensors",                        "Url": "https://huggingface.co/Comfy-Org/flux2-dev/resolve/main/split_files/vae/flux2-vae.safetensors?download=true",                                     "Size": 0.3  }],
-			"TextEncoder": { "FileName": "qwen_3_4b_fp8_mixed.safetensors", "Url": "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/text_encoders/qwen_3_4b_fp8_mixed.safetensors?download=true",          "Size": 5.6 },
+			"TextEncoder": [{ "FileName": "qwen_3_4b_fp8_mixed.safetensors", "Url": "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/text_encoders/qwen_3_4b_fp8_mixed.safetensors?download=true",          "Size": 5.6 }],
 			"LoRA":[        				
 				{ "FileName": "PBRFusion4_Albedo.safetensors", "Url": "https://huggingface.co/NightRaven109/PBRFusion4/resolve/main/PBRFusion4_Albedo.safetensors?download=true", "Size": 0.1 }
 			],
@@ -609,7 +609,7 @@
 				"Q2": { "FileName": "flux-2-klein-9b-Q2_K.gguf",   "Url": "https://huggingface.co/unsloth/FLUX.2-klein-9B-GGUF/resolve/main/flux-2-klein-9b-Q2_K.gguf?download=true",   "Size": 4.0 }
 			},
 			"VAE":         [{ "FileName": "flux2-vae.safetensors",                        "Url": "https://huggingface.co/Comfy-Org/flux2-dev/resolve/main/split_files/vae/flux2-vae.safetensors?download=true",                                     "Size": 0.3  }],
-			"TextEncoder": { "FileName": "qwen_3_8b_fp8mixed.safetensors", "Url": "https://huggingface.co/Comfy-Org/vae-text-encorder-for-flux-klein-9b/resolve/main/split_files/text_encoders/qwen_3_8b_fp8mixed.safetensors?download=true",          "Size": 5.6 },
+			"TextEncoder": [{ "FileName": "qwen_3_8b_fp8mixed.safetensors", "Url": "https://huggingface.co/Comfy-Org/vae-text-encorder-for-flux-klein-9b/resolve/main/split_files/text_encoders/qwen_3_8b_fp8mixed.safetensors?download=true",          "Size": 5.6 }],
 			"LoRA":[        				
 				{ "FileName": "flux2-klein9b-canny5k-lora_000000500.safetensors", "Url": "https://huggingface.co/visualbruno/Flux2KleinLora/resolve/main/flux2-klein9b-canny5k-lora_000000500.safetensors?download=true", "Size": 0.3 },
 				{ "FileName": "flux2-klein9b-albedo-lora.safetensors", "Url": "https://huggingface.co/visualbruno/Flux2KleinLora/resolve/main/flux2-klein9b-albedo-lora.safetensors?download=true", "Size": 0.3 },
@@ -729,7 +729,7 @@
 				"Q2":   { "FileName": "krea2_turbo-Q2_K.gguf",   "Url": "https://huggingface.co/vantagewithai/Krea-2-Turbo-GGUF/resolve/main/krea2_turbo-Q2_K.gguf?download=true",   "Size": 4.89  }
 			},
 			"VAE":         [{ "FileName": "qwen_image_vae.safetensors",            "Url": "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors?download=true",                          "Size": 0.3 }],
-			"TextEncoder": { "FileName": "qwen3vl_4b_fp8_scaled.safetensors", "Url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/qwen3vl_4b_fp8_scaled.safetensors?download=true",          "Size": 5.24 },
+			"TextEncoder": [{ "FileName": "qwen3vl_4b_fp8_scaled.safetensors", "Url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/qwen3vl_4b_fp8_scaled.safetensors?download=true",          "Size": 5.24 }],
 			"Workflows": [
 				{
 					"Name": "Gen Image with Krea2 Turbo",
@@ -755,7 +755,7 @@
 				"Q4":   { "FileName": "Boogu-Turbo-V2_dit-Q4_0.gguf", "Url": "https://huggingface.co/realrebelai/Boogu-Image-Turbo_GGUFs/resolve/main/Boogu-Turbo-V2_dit-Q4_0.gguf?download=true", "Size": 6.78  }
 			},
 			"VAE":         [{ "FileName": "flux1_vae_bf16.safetensors",            "Url": "https://huggingface.co/Comfy-Org/Boogu-Image/resolve/main/vae/flux1_vae_bf16.safetensors?download=true",                          "Size": 0.2 }],
-			"TextEncoder": { "FileName": "qwen3vl_8b_fp8_scaled.safetensors", "Url": "https://huggingface.co/Comfy-Org/Boogu-Image/resolve/main/text_encoders/qwen3vl_8b_fp8_scaled.safetensors?download=true",          "Size": 10.6 },
+			"TextEncoder": [{ "FileName": "qwen3vl_8b_fp8_scaled.safetensors", "Url": "https://huggingface.co/Comfy-Org/Boogu-Image/resolve/main/text_encoders/qwen3vl_8b_fp8_scaled.safetensors?download=true",          "Size": 10.6 }],
 			"Workflows": [
 				{
 					"Name": "Gen Image with Boogu Turbo",
@@ -781,7 +781,7 @@
 				"Q4":   { "FileName": "boogu-edit-dit-Q4_0.gguf", "Url": "https://huggingface.co/realrebelai/Boogu-Image-Edit_GGUFs/resolve/main/boogu-edit-dit-Q4_0.gguf?download=true", "Size": 6.84  }
 			},
 			"VAE": [         { "FileName": "flux1_vae_bf16.safetensors",            "Url": "https://huggingface.co/Comfy-Org/Boogu-Image/resolve/main/vae/flux1_vae_bf16.safetensors?download=true",                          "Size": 0.2 } ],
-			"TextEncoder": { "FileName": "qwen3vl_8b_fp8_scaled.safetensors", "Url": "https://huggingface.co/Comfy-Org/Boogu-Image/resolve/main/text_encoders/qwen3vl_8b_fp8_scaled.safetensors?download=true",          "Size": 10.6 },
+			"TextEncoder": [{ "FileName": "qwen3vl_8b_fp8_scaled.safetensors", "Url": "https://huggingface.co/Comfy-Org/Boogu-Image/resolve/main/text_encoders/qwen3vl_8b_fp8_scaled.safetensors?download=true",          "Size": 10.6 }],
 			"Workflows": [
 				{
 					"Name": "Edit Image with Boogu Edit Turbo",
@@ -902,7 +902,7 @@
 				{ "FileName": "minimax_h3_fl2v_turbo_8step_v1.0_768p_comfyui_resized_avg_rank_64_bf16.safetensors", "Url": "https://huggingface.co/drbaph/MiniMax-H3-Turbo-Lora-ComfyUI/resolve/main/minimax_h3_fl2v_turbo_8step_v1.0_768p_comfyui_resized_avg_rank_64_bf16.safetensors?download=true", "Size": 0.97 },
 				{ "FileName": "minimax_h3_flf2v_lora_v1.safetensors", "Url": "https://huggingface.co/pablodawson/MiniMax-H3-360-Orbit-LoRA/resolve/main/minimax_h3_flf2v_lora_v1.safetensors?download=true", "Size": 0.16 }
 			],			
-			"TextEncoder": { "FileName": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors", "Url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors?download=true",          "Size": 15.7 },
+			"TextEncoder": [{ "FileName": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors", "Url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors?download=true",          "Size": 15.7 }],
 			"Workflows": [
 				{
 					"Name": "Gen MultiView Images with MiniMax H3",
@@ -928,8 +928,7 @@
 				{ "FileName": "flux2-vae.safetensors",                        "Url": "https://huggingface.co/Comfy-Org/flux2-dev/resolve/main/split_files/vae/flux2-vae.safetensors?download=true",                                     "Size": 0.3  },
 				{ "FileName": "ultratex_flux2_decoder.pt",                        "Url": "https://www.modelscope.ai/models/Yibo-Zhang/UltraTex/resolve/master/flux2/decoder.pt?view=false",                                     "Size": 0.1  }
 			],
-			"TextEncoder": { "FileName": "qwen_3_8b_fp8mixed.safetensors", "Url": "https://huggingface.co/Comfy-Org/vae-text-encorder-for-flux-klein-9b/resolve/main/split_files/text_encoders/qwen_3_8b_fp8mixed.safetensors?download=true",          "Size": 5.6 }
-			,
+			"TextEncoder": [{ "FileName": "qwen_3_8b_fp8mixed.safetensors", "Url": "https://huggingface.co/Comfy-Org/vae-text-encorder-for-flux-klein-9b/resolve/main/split_files/text_encoders/qwen_3_8b_fp8mixed.safetensors?download=true",          "Size": 5.6 }],
 			"LoRA":[        				
 				{ "FileName": "ultratex_flux2.safetensors", "Url": "https://www.modelscope.ai/models/Yibo-Zhang/UltraTex/resolve/master/flux2/lora/dit_lora.safetensors?view=false", "Size": 0.47 }
 			],
@@ -1015,6 +1014,83 @@
 					],
 					"Outputs": [
 						{ "Node": "12", "Name": "Save Mesh", "Type": "Mesh" }
+					]
+				}				
+			]
+		},
+		{
+			"Name": "MOSS Image",
+			"DiffusionModels": {
+				"BF16":   { "FileName": "moss_image_sft_bf16.safetensors",   "Url": "https://huggingface.co/Comfy-Org/MOSS-Image/resolve/main/diffusion_models/moss_image_sft_bf16.safetensors?download=true",   "Size": 10.2 },
+				"INT8":   { "FileName": "moss_image_sft_int8_convrot.safetensors",   "Url": "https://huggingface.co/Comfy-Org/MOSS-Image/resolve/main/diffusion_models/moss_image_sft_int8_convrot.safetensors?download=true",   "Size": 5.41 }
+			},
+			"VAE":         [
+				{ "FileName": "flux2-vae.safetensors",            "Url": "https://huggingface.co/Comfy-Org/MOSS-Image/resolve/main/vae/flux2-vae.safetensors?download=true",                          "Size": 0.34 }
+			],
+			"TextEncoder": [{ "FileName": "qwen3.5_9b_int8_convrot.safetensors", "Url": "https://huggingface.co/Comfy-Org/MOSS-Image/resolve/main/text_encoders/qwen3.5_9b_int8_convrot.safetensors?download=true",          "Size": 9.75 }],
+			"Workflows": [
+				{
+					"Name": "Gen Image with MOSS",
+					"File": "setup/Gen Image with MOSS.json",
+					"Inputs": [
+						{ "Node": "25", "Input": "value",  "Name": "Prompt", "Type": "String" },
+						{ "Node": "31",  "Input": "seed",  "Name": "Seed",   "Type": "Number" },
+						{ "Node": "34",  "Input": "switch",  "Name": "Use Prompt Enhancer",   "Type": "Boolean" },
+						{ "Node": "35",  "Input": "width", "Name": "Width",  "Type": "Number" },
+						{ "Node": "35",  "Input": "height", "Name": "Height",  "Type": "Number" },
+						{ "Node": "31",  "Input": "steps", "Name": "Steps",  "Type": "Number" },
+						{ "Node": "35",  "Input": "batch_size", "Name": "Number of Images to Generate",  "Type": "Number" }
+					],
+					"Outputs": [
+						{ "Node": "40", "Name": "Save Image", "Type": "Image" }
+					]
+				}
+			]
+		},
+		{
+			"Name": "Flux3 Klein",
+			"DiffusionModels": {
+				"BF16":   { "FileName": "flux3-image-klein-bf16.safetensors",   "Url": "https://huggingface.co/visualbruno/flux-3-image-klein-comfy/resolve/main/flux3-image-klein-bf16.safetensors?download=true",   "Size": 11.1 },
+				"INT8":   { "FileName": "flux3-image-klein-int8-convrot.safetensors",   "Url": "https://huggingface.co/visualbruno/flux-3-image-klein-comfy/resolve/main/flux3-image-klein-int8-convrot.safetensors?download=true",   "Size": 5.83 },
+				"NVFP4":   { "FileName": "flux3-image-klein-nvfp4.safetensors",   "Url": "https://huggingface.co/visualbruno/flux-3-image-klein-comfy/resolve/main/flux3-image-klein-nvfp4.safetensors?download=true",   "Size": 5.28 }				
+			},
+			"VAE":         [
+				{ "FileName": "flux2-vae.safetensors",            "Url": "https://huggingface.co/visualbruno/flux-3-image-klein-comfy/resolve/main/flux2-vae.safetensors?download=true",                          "Size": 0.34 }
+			],
+			"TextEncoder": [
+				{ "FileName": "qwen3vl_4b_int8_convrot.safetensors", "Url": "https://huggingface.co/visualbruno/flux-3-image-klein-comfy/resolve/main/qwen3vl_4b_int8_convrot.safetensors?download=true",          "Size": 4.86 },
+				{ "FileName": "qwen3.5_9b_flux3_prompt_upsampler_int8_convrot.safetensors", "Url": "https://huggingface.co/visualbruno/flux-3-image-klein-comfy/resolve/main/qwen3.5_9b_flux3_prompt_upsampler_int8_convrot.safetensors?download=true",          "Size": 9.75 }
+			],
+			"Workflows": [
+				{
+					"Name": "Gen Image with Flux3 Klein",
+					"File": "setup/Gen Image with Flux3 Klein.json",
+					"Inputs": [
+						{ "Node": "28", "Input": "value",  "Name": "Prompt", "Type": "String" },
+						{ "Node": "153",  "Input": "seed",  "Name": "Seed",   "Type": "Number" },
+						{ "Node": "134",  "Input": "switch",  "Name": "Use Prompt Enhancer",   "Type": "Boolean" },
+						{ "Node": "159",  "Input": "value", "Name": "Width",  "Type": "Number" },
+						{ "Node": "160",  "Input": "value", "Name": "Height",  "Type": "Number" },
+						{ "Node": "153",  "Input": "steps", "Name": "Steps",  "Type": "Number" },
+						{ "Node": "152",  "Input": "batch_size", "Name": "Number of Images to Generate",  "Type": "Number" }
+					],
+					"Outputs": [
+						{ "Node": "158", "Name": "Save Image", "Type": "Image" }
+					]
+				},
+				{
+					"Name": "Edit Image with Flux3 Klein",
+					"File": "setup/Edit Image with Flux3 Klein.json",
+					"Inputs": [
+						{ "Node": "28", "Input": "value",  "Name": "Prompt", "Type": "String" },
+						{ "Node": "133", "Input": "image",  "Name": "Source Image", "Type": "Image" },
+						{ "Node": "128:107",  "Input": "seed",  "Name": "Seed",   "Type": "Number" },
+						{ "Node": "127:116",  "Input": "switch",  "Name": "Use Prompt Enhancer",   "Type": "Boolean" },
+						{ "Node": "145:141",  "Input": "megapixels",  "Name": "Image Size in MPixels",   "Type": "Number" },
+						{ "Node": "128:107",  "Input": "steps", "Name": "Steps",  "Type": "Number" }
+					],
+					"Outputs": [
+						{ "Node": "150", "Name": "Save Image", "Type": "Image" }
 					]
 				}				
 			]
