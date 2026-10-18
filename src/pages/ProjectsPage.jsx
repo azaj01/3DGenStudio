@@ -28,6 +28,21 @@ const PRESETS = [
 
 const CHANGE_LOG_ENTRIES = [
   {
+    version: 'v3.5.4',
+    date: '2026-10-18',
+    items: [
+			'Batch Project: Added Stage Action "Auto Retopo"',
+			'SetupWizard: Added Qwen Image 2.1 Turbo',
+			'SetupWizard: Added MOSS Image',
+			'SetupWizard: Added Flux3 Klein',
+			'SetupWizard: Can resume a download',
+			'AutoUV: Improved and added more options',
+			'ComfyUI: Updated workflows that use an image',
+			'Batch Project: Fixed Bake Stage Action',
+			'Updated NPM packages'
+    ]
+  },
+  {
     version: 'v3.5.3',
     date: '2026-10-06',
     items: [

@@ -527,7 +527,7 @@ export default function SetupWizardModal({ onComplete, onClose }) {
         {stepId === 'models' && config && (
           <div className="setup-wizard__body">
             <p className="setup-wizard__hint">
-              Pick one quality per model you want to install — or leave everything as “Don’t install” to skip downloads and jump straight to importing workflows. Sizes include the model file and every extra it needs (VAE(s), text encoder, LoRAs, CLIP Vision, background removal, …).
+              Pick one quality per model you want to install — or leave everything as “Don’t install” to skip downloads and jump straight to importing workflows. Sizes include the model file and every extra it needs (VAE(s), text encoder(s), LoRAs, CLIP Vision, background removal, …).
             </p>
 
             <div className="setup-wizard__model-list">

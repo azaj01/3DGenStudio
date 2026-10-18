@@ -19,6 +19,8 @@
 
 | Date | Description |
 | --- | --- |
+| **2026-10-18** | Batch Project: Added Stage Action "Auto Retopo"<br>SetupWizard: Added Qwen Image 2.1 Turbo<br>SetupWizard: Added MOSS Image<br>SetupWizard: Added Flux3 Klein<br>SetupWizard: Can resume a download<br>AutoUV: Improved and added more options<br>Fixed bugs |
+| **2026-10-06** | Batch Project: Added Stage Actions "AutoUV","Transfer Rig","Flatten to Albedo"<br>SetupWizard: Added UltraTex<br>Desktop App: Can use services from a remote computer<br>Fixed bugs |
 | **2026-09-27** | Batch Project: Moved execution to the backend<br>Batch Project: Stage supports ComfyUI, Optimize, AutoRig and Bake<br>Assets Page: Can search/filter versions of images/meshes<br>Assets Page: Can export a list of assets<br>Export Mesh: Can flat PBR textures to albedo (mobile)<br>Export Project: Use the asset name instead of the id<br>Fixed bugs |
 | **2026-09-23** | ComfyUI: Fixed "Gen TexturedMesh with Trellis2"<br>Batch Project: Can run the batch by Stage'<br>MCP: Added functions for Batch Project<br>SetupWizard: Added Qwen Image 2.1<br>AutoRetopo: Can fix open edges<br>AutoRig: Can modify mesh orientation<br>AutoRig: Fixed crash on Linux<br>ComfyUI: Updated MeshProjection workflows<br>MeshExport: Fixed LOD Texture Size |
 | **2026-09-18** | New: Building Generator - draw a plan, the graph builds every storey<br>Bake: Fixed bug<br>MeshEditor - Optimize: Updated to latest version |
